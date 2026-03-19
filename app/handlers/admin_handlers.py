@@ -60,7 +60,7 @@ def find_user_by_phone(phone: str):
     return None
 
 
-@admin_router.message(F.text.in_(["🛰 АДМІН-ПАНЕЛЬ", "рџ›Ў РђР”РњР†Рќ-РџРђРќР•Р›Р¬"]))
+@admin_router.message(F.text == "🛰 АДМІН-ПАНЕЛЬ")
 async def admin_panel_enter(message: Message):
     if not admin_db.is_admin(message.from_user.id):
         return
@@ -73,7 +73,7 @@ async def admin_panel_enter(message: Message):
     )
 
 
-@admin_router.message(F.text.in_(["📥 НОВІ БРОНЮВАННЯ", "рџ“Ґ РќРћР’Р† Р‘Р РћРќР®Р’РђРќРќРЇ"]))
+@admin_router.message(F.text == "📥 НОВІ БРОНЮВАННЯ")
 async def show_new_bookings(message: Message):
     if not admin_db.is_admin(message.from_user.id):
         return
@@ -102,7 +102,7 @@ async def show_new_bookings(message: Message):
         await message.answer(text, reply_markup=akb.get_booking_manage_kb(b['id']))
 
 
-@admin_router.message(F.text.in_(["👥 КЕРУВАННЯ АДМІНАМИ", "рџ‘Ґ РљР•Р РЈР’РђРќРЍ РђР”РњР†РќРђРќР"]))
+@admin_router.message(F.text == "👥 КЕРУВАННЯ АДМІНАМИ")
 async def manage_admins(message: Message):
     if not admin_db.is_admin(message.from_user.id):
         return
