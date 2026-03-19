@@ -19,7 +19,7 @@ class BookingDatabase:
 
     def _init_database(self):
         self._execute(
-            '''
+            """
             CREATE TABLE IF NOT EXISTS bookings (
                 id INTEGER PRIMARY KEY AUTOINCREMENT,
                 user_id INTEGER,
@@ -31,10 +31,10 @@ class BookingDatabase:
                 people_count TEXT,
                 wishes TEXT,
                 cart TEXT,
-                status TEXT DEFAULT 'new', -- new, confirmed, cancelled
+                status TEXT DEFAULT 'new',
                 timestamp DATETIME DEFAULT CURRENT_TIMESTAMP
             )
-        '''
+        """
         )
         self._migrate_schema()
 
@@ -50,8 +50,11 @@ class BookingDatabase:
                 "INSERT INTO bookings (user_id, username, fullname, phone, location_id, date_time, people_count, wishes, cart) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)",
                 (user_id, username, fullname, phone, location_id, date_time, people_count, wishes, cart)
             )
+            booking_id = cur.lastrowid
+            if not booking_id:
+                booking_id = conn.execute("SELECT last_insert_rowid()").fetchone()[0]
             conn.commit()
-            return cur.lastrowid
+            return booking_id
 
     def get_new_bookings(self):
         return self._execute("SELECT * FROM bookings WHERE status = 'new' ORDER BY timestamp DESC", fetchall=True)

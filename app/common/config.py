@@ -32,9 +32,4 @@ LOCATIONS = {
     "6": {"name": "Medelin на Новака", "address": "вул. Новака, 2"},
 }
 
-LOCATION_ADMINS = {}
-for item in os.getenv("LOCATION_ADMINS", "").split(","):
-    if ":" in item:
-        loc_id, admin_id = item.split(":")
-        if admin_id:
-            LOCATION_ADMINS.setdefault(loc_id, []).append(admin_id)
+GOD_IDS = [gid for gid in os.getenv("GOD_IDS", "").split(",") if gid]

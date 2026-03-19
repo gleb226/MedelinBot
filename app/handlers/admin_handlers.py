@@ -8,6 +8,7 @@ from app.common.config import LOCATIONS, ADMINS_DB_PATH
 from app.databases.booking_database import booking_db
 from app.databases.admin_database import admin_db
 from app.databases.user_database import user_db
+from app.utils.phone_utils import normalize_phone
 import re
 import sqlite3
 
@@ -22,20 +23,11 @@ class AdminStates(StatesGroup):
     adding_admin_location = State()
 
 
-def normalize_phone_digits(phone: str) -> str:
-    return re.sub(r"\D", "", phone or "")
-
-
 def find_user_by_phone(phone: str):
-    """
-    Try to resolve user_id by phone from users.db, then bookings.db.
-    Returns dict with keys: user_id, name, username, phone or None.
-    """
-    target = normalize_phone_digits(phone)
+    target = normalize_phone(phone)
     if not target:
         return None
 
-    # 1) users table
     row = user_db.get_user_by_phone(phone)
     if row:
         return {
@@ -45,12 +37,11 @@ def find_user_by_phone(phone: str):
             "phone": row[3],
         }
 
-    # 2) bookings table (latest match)
     conn = sqlite3.connect(booking_db.db_name)
     conn.row_factory = sqlite3.Row
     cur = conn.cursor()
     for r in cur.execute("SELECT * FROM bookings ORDER BY timestamp DESC"):
-        if normalize_phone_digits(r["phone"]) == target:
+        if normalize_phone(r["phone"]) == target:
             return {
                 "user_id": r["user_id"],
                 "name": r["fullname"],

@@ -1,7 +1,7 @@
 import sqlite3
 from typing import Iterable, List, Optional
 
-from app.common.config import ADMINS_DB_PATH, ADMIN_IDS, LOCATIONS, LOCATION_ADMINS
+from app.common.config import ADMINS_DB_PATH, ADMIN_IDS, GOD_IDS, LOCATIONS
 
 
 class AdminDatabase:
@@ -10,7 +10,6 @@ class AdminDatabase:
         self._init_database()
         self._seed_from_env()
 
-    # ---------- internal helpers ----------
     def _execute(self, query, params=(), fetchone=False, fetchall=False):
         with sqlite3.connect(self.db_name) as conn:
             cursor = conn.cursor()
@@ -27,7 +26,7 @@ class AdminDatabase:
             CREATE TABLE IF NOT EXISTS admins (
                 user_id INTEGER PRIMARY KEY,
                 username TEXT,
-                role TEXT DEFAULT 'admin', -- admin | super | god
+                role TEXT DEFAULT 'admin',
                 receive_notifications INTEGER DEFAULT 1,
                 added_by INTEGER,
                 timestamp DATETIME DEFAULT CURRENT_TIMESTAMP
@@ -56,25 +55,19 @@ class AdminDatabase:
             self._execute("ALTER TABLE admins ADD COLUMN added_by INTEGER")
 
     def _seed_from_env(self):
-        """
-        Sync super-admins and location bindings from .env on startup.
-        """
-        env_admins = [int(aid) for aid in ADMIN_IDS if aid.isdigit()]
-        for admin_id in env_admins:
-            # super admins from env do NOT get notifications by default
+        env_super_admins = {int(aid) for aid in ADMIN_IDS if aid.isdigit()}
+        env_god_admins = {int(gid) for gid in GOD_IDS if gid.isdigit()}
+        for god_id in env_god_admins:
+            self._execute(
+                "INSERT OR IGNORE INTO admins (user_id, role, receive_notifications, added_by) VALUES (?, 'god', 1, NULL)",
+                (god_id,),
+            )
+        for admin_id in env_super_admins - env_god_admins:
             self._execute(
                 "INSERT OR IGNORE INTO admins (user_id, role, receive_notifications, added_by) VALUES (?, 'super', 0, NULL)",
                 (admin_id,),
             )
-        for loc_id, admins in LOCATION_ADMINS.items():
-            for admin_id in admins:
-                if str(admin_id).isdigit():
-                    self._execute(
-                        "INSERT OR IGNORE INTO admin_locations (user_id, location_id) VALUES (?, ?)",
-                        (int(admin_id), loc_id),
-                    )
 
-    # ---------- mutations ----------
     def add_admin(
         self,
         user_id: int,
@@ -119,12 +112,11 @@ class AdminDatabase:
             (role, int(receive_notifications), user_id),
         )
 
-    # ---------- queries ----------
     def get_all_admins(self) -> List[int]:
-        """All admins (any role) that should have panel access."""
         db_admins = [r[0] for r in self._execute("SELECT user_id FROM admins", fetchall=True)]
-        env_admins = [int(aid) for aid in ADMIN_IDS if aid.isdigit()]
-        return list(set(db_admins + env_admins))
+        env_super = {int(aid) for aid in ADMIN_IDS if aid.isdigit()}
+        env_god = {int(gid) for gid in GOD_IDS if gid.isdigit()}
+        return list({*db_admins, *env_super, *env_god})
 
     def get_locations_for_admin(self, user_id: int) -> List[str]:
         rows = self._execute(
@@ -144,8 +136,9 @@ class AdminDatabase:
             fetchone=True,
         )
         role = row[0] if row else None
-        env_admins = [int(aid) for aid in ADMIN_IDS if aid.isdigit()]
-        return role in ("super", "god") or user_id in env_admins
+        env_super = {int(aid) for aid in ADMIN_IDS if aid.isdigit()}
+        env_god = {int(gid) for gid in GOD_IDS if gid.isdigit()}
+        return role in ("super", "god") or user_id in env_super or user_id in env_god
 
     def is_god(self, user_id: int) -> bool:
         row = self._execute(
@@ -161,12 +154,6 @@ class AdminDatabase:
         return location_id in self.get_locations_for_admin(user_id)
 
     def get_notification_targets(self, location_id: str) -> List[int]:
-        """
-        Admins who should receive booking notifications for a location:
-        - admins assigned to that location with notifications enabled
-        - god users (role == god) with notifications enabled
-        - super admins only if receive_notifications = 1
-        """
         rows = self._execute(
             """
             SELECT a.user_id
