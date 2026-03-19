@@ -32,4 +32,13 @@ LOCATIONS = {
     "6": {"name": "Medelin на Новака", "address": "вул. Новака, 2"},
 }
 
+LOCATION_ADMINS = {
+    "1": [aid for aid in os.getenv("ADMIN_IDS_KORYATOVICHA", "").split(",") if aid],
+    "2": [aid for aid in os.getenv("ADMIN_IDS_ZAKARPATSLA", "").split(",") if aid],
+    "3": [aid for aid in os.getenv("ADMIN_IDS_PROSPECT", "").split(",") if aid],
+    "4": [aid for aid in os.getenv("ADMIN_IDS_BOZDOSH", "").split(",") if aid],
+    "5": [aid for aid in os.getenv("ADMIN_IDS_GOYDY", "").split(",") if aid],
+    "6": [aid for aid in os.getenv("ADMIN_IDS_NOVAKA", "").split(",") if aid],
+}
+
 GOD_IDS = [gid for gid in os.getenv("GOD_IDS", "").split(",") if gid]
