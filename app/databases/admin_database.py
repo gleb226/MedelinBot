@@ -108,16 +108,11 @@ class AdminDatabase:
         query = """
             SELECT DISTINCT a.user_id 
             FROM admins a
-            LEFT JOIN admin_locations al ON a.user_id = al.user_id
-            WHERE (al.location_id = ? OR a.role IN ('super', 'god')) AND a.receive_notifications = 1
+            JOIN admin_locations al ON a.user_id = al.user_id
+            WHERE al.location_id = ? AND a.role = 'admin' AND a.receive_notifications = 1
         """
         rows = await self._execute(query, (location_id,), fetchall=True)
         targets = set([r[0] for r in rows])
-        for gid in GOD_IDS:
-            try:
-                targets.add(int(gid))
-            except:
-                pass
         return list(targets)
 
 admin_db = AdminDatabase()

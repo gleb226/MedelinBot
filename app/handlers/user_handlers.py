@@ -154,7 +154,14 @@ async def wishes_entered(message: Message, state: FSMContext):
 
 @user_router.message(BookingStates.entering_phone)
 async def phone_entered(message: Message, state: FSMContext):
-    phone = message.text.strip()
+    if message.contact:
+        phone = message.contact.phone_number
+    elif message.text:
+        phone = message.text.strip()
+    else:
+        await message.answer("Будь ласка, вкажіть свій номер телефону.")
+        return
+        
     await state.update_data(phone=phone)
     await user_db.set_phone(message.from_user.id, phone)
     await show_booking_summary(message, state)

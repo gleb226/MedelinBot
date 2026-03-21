@@ -54,7 +54,7 @@ class UserDatabase:
     async def add_user(
         self, user_id: int, first_name: str, username: str, phone: str = None
     ):
-        phone_value = format_phone(phone)
+        phone_value = format_phone(phone) if phone else None
         existing = await self._execute(
             "SELECT user_id FROM users WHERE user_id = ?", (user_id,), fetchone=True
         )
