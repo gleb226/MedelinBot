@@ -34,11 +34,11 @@ async def global_error_handler(event: ErrorEvent, bot: Bot):
     etype = type(error).__name__
     emsg = str(error)
     tb = "".join(traceback.format_exception(type(error), error, error.__traceback__))
-    
+
     user_id = None
     username = None
     command = "Unknown"
-    
+
     if event.update.message:
         user_id = event.update.message.from_user.id
         username = event.update.message.from_user.username
@@ -49,9 +49,9 @@ async def global_error_handler(event: ErrorEvent, bot: Bot):
         command = event.update.callback_query.data
 
     await log_error_to_db(user_id, username, command, f"{etype}: {emsg}", tb)
-    
+
     error_text = "⚠️ Вибачте, виникла помилка. Ми вже працюємо над її виправленням!"
-    
+
     try:
         if event.update.message:
             await event.update.message.answer(error_text)
@@ -59,9 +59,14 @@ async def global_error_handler(event: ErrorEvent, bot: Bot):
             await event.update.callback_query.message.answer(error_text)
     except:
         pass
-        
+
     for god_id in GOD_IDS:
         try:
-            await bot.send_message(god_id, f"🚨 **ERROR REPORT**\nUser: {user_id} (@{username})\nType: {etype}\nMsg: {emsg}")
+            uname = f"@{username}" if username else "N/A"
+            await bot.send_message(
+                god_id,
+                f"🚨 <b>ERROR REPORT</b>\nUser: <code>{user_id}</code> ({uname})\nType: <code>{etype}</code>\nMsg: <code>{emsg}</code>",
+                parse_mode="HTML",
+            )
         except:
             pass
