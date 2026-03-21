@@ -16,12 +16,7 @@ class AdminDatabase:
             await self.conn.close()
 
     async def _execute(self, query, params=(), fetchone=False, fetchall=False):
-        # This is not safe if multiple coroutines are calling this on the same instance
-        # without awaiting the result immediately.
-        # But for this project, it seems to be the case.
         if not self.conn:
-            # This should not happen if connect() is called on startup.
-            # But as a fallback...
             async with aiosqlite.connect(self.db_name) as db:
                 async with db.cursor() as cursor:
                     await cursor.execute(query, params)

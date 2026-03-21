@@ -364,20 +364,21 @@ async def confirm_remove_admin(callback: CallbackQuery):
         await callback.answer("🚫 Ви не можете видалити самі себе.", show_alert=True)
         return
 
-    current_admin_role = await admin_db._execute("SELECT role FROM admins WHERE user_id = ?", (callback.from_user.id,), fetchone=True)
-    target_admin_role = await admin_db._execute("SELECT role FROM admins WHERE user_id = ?", (user_id_to_remove,), fetchone=True)
+    is_god = await admin_db.is_god(callback.from_user.id)
+    is_super = await admin_db.is_super_admin(callback.from_user.id)
+
+    target_admin_role_data = await admin_db._execute("SELECT role FROM admins WHERE user_id = ?", (user_id_to_remove,), fetchone=True)
     
-    if not current_admin_role or not target_admin_role:
+    if not target_admin_role_data:
         await callback.answer("❌ Помилка: користувача не знайдено.")
         return
         
-    c_role = current_admin_role[0]
-    t_role = target_admin_role[0]
+    t_role = target_admin_role_data[0]
     
     can_delete = False
-    if c_role == "god":
+    if is_god:
         can_delete = True
-    elif c_role == "super" and t_role == "admin":
+    elif is_super and t_role == "admin":
         can_delete = True
         
     if not can_delete:
