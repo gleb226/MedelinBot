@@ -1,171 +1,128 @@
-import sqlite3
-from typing import Iterable, List, Optional
-
-from app.common.config import ADMINS_DB_PATH, ADMIN_IDS, GOD_IDS, LOCATIONS
-
+import aiosqlite
+from app.common.config import ADMINS_DB_PATH, GOD_IDS
 
 class AdminDatabase:
     def __init__(self):
         self.db_name = ADMINS_DB_PATH
-        self._init_database()
-        self._seed_from_env()
+        self.conn = None
 
-    def _execute(self, query, params=(), fetchone=False, fetchall=False):
-        with sqlite3.connect(self.db_name) as conn:
-            cursor = conn.cursor()
-            cursor.execute(query, params)
-            conn.commit()
+    async def connect(self):
+        self.conn = await aiosqlite.connect(self.db_name)
+        await self.conn.execute("PRAGMA foreign_keys = ON;")
+        await self._init_database()
+
+    async def close(self):
+        if self.conn:
+            await self.conn.close()
+
+    async def _execute(self, query, params=(), fetchone=False, fetchall=False):
+        # This is not safe if multiple coroutines are calling this on the same instance
+        # without awaiting the result immediately.
+        # But for this project, it seems to be the case.
+        if not self.conn:
+            # This should not happen if connect() is called on startup.
+            # But as a fallback...
+            async with aiosqlite.connect(self.db_name) as db:
+                async with db.cursor() as cursor:
+                    await cursor.execute(query, params)
+                    if not query.strip().upper().startswith("SELECT"):
+                        await db.commit()
+                    if fetchone:
+                        return await cursor.fetchone()
+                    if fetchall:
+                        return await cursor.fetchall()
+
+        async with self.conn.cursor() as cursor:
+            await cursor.execute(query, params)
+            if not query.strip().upper().startswith("SELECT"):
+                await self.conn.commit()
+            
             if fetchone:
-                return cursor.fetchone()
+                return await cursor.fetchone()
             if fetchall:
-                return cursor.fetchall()
+                return await cursor.fetchall()
 
-    def _init_database(self):
-        self._execute(
-            """
+    async def _init_database(self):
+        await self._execute("""
             CREATE TABLE IF NOT EXISTS admins (
                 user_id INTEGER PRIMARY KEY,
                 username TEXT,
                 role TEXT DEFAULT 'admin',
-                receive_notifications INTEGER DEFAULT 1,
                 added_by INTEGER,
-                timestamp DATETIME DEFAULT CURRENT_TIMESTAMP
+                receive_notifications INTEGER DEFAULT 1,
+                created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
             )
-        """
-        )
-        self._execute(
-            """
+        """)
+        await self._execute("""
             CREATE TABLE IF NOT EXISTS admin_locations (
-                id INTEGER PRIMARY KEY AUTOINCREMENT,
                 user_id INTEGER,
                 location_id TEXT,
-                UNIQUE(user_id, location_id)
+                FOREIGN KEY(user_id) REFERENCES admins(user_id) ON DELETE CASCADE,
+                PRIMARY KEY(user_id, location_id)
             )
-        """
-        )
-        self._migrate_schema()
+        """)
 
-    def _migrate_schema(self):
-        cols = {row[1] for row in self._execute("PRAGMA table_info(admins)", fetchall=True)}
-        if "role" not in cols:
-            self._execute("ALTER TABLE admins ADD COLUMN role TEXT DEFAULT 'admin'")
-        if "receive_notifications" not in cols:
-            self._execute("ALTER TABLE admins ADD COLUMN receive_notifications INTEGER DEFAULT 1")
-        if "added_by" not in cols:
-            self._execute("ALTER TABLE admins ADD COLUMN added_by INTEGER")
+    async def is_admin(self, user_id: int) -> bool:
+        if str(user_id) in GOD_IDS:
+            return True
+        res = await self._execute("SELECT 1 FROM admins WHERE user_id = ?", (user_id,), fetchone=True)
+        return bool(res)
 
-    def _seed_from_env(self):
-        env_super_admins = {int(aid) for aid in ADMIN_IDS if aid.isdigit()}
-        env_god_admins = {int(gid) for gid in GOD_IDS if gid.isdigit()}
-        for god_id in env_god_admins:
-            self._execute(
-                "INSERT OR IGNORE INTO admins (user_id, role, receive_notifications, added_by) VALUES (?, 'god', 1, NULL)",
-                (god_id,),
-            )
-        for admin_id in env_super_admins - env_god_admins:
-            self._execute(
-                "INSERT OR IGNORE INTO admins (user_id, role, receive_notifications, added_by) VALUES (?, 'super', 0, NULL)",
-                (admin_id,),
-            )
+    async def is_super_admin(self, user_id: int) -> bool:
+        if str(user_id) in GOD_IDS:
+            return True
+        res = await self._execute("SELECT role FROM admins WHERE user_id = ?", (user_id,), fetchone=True)
+        return res and res[0] in ('super', 'god')
 
-    def add_admin(
-        self,
-        user_id: int,
-        username: Optional[str],
-        added_by: Optional[int],
-        role: str = "admin",
-        locations: Optional[Iterable[str]] = None,
-        receive_notifications: Optional[bool] = None,
-    ):
-        role = role if role in ("admin", "super", "god") else "admin"
-        if receive_notifications is None:
-            receive_notifications = 0 if role == "super" else 1
+    async def is_god(self, user_id: int) -> bool:
+        if str(user_id) in GOD_IDS:
+            return True
+        res = await self._execute("SELECT role FROM admins WHERE user_id = ?", (user_id,), fetchone=True)
+        return res and res[0] == 'god'
 
-        self._execute(
-            "INSERT OR REPLACE INTO admins (user_id, username, role, receive_notifications, added_by) VALUES (?, ?, ?, ?, ?)",
-            (user_id, username, role, int(receive_notifications), added_by),
-        )
-
-        if locations is not None:
-            self.set_locations(user_id, locations)
-
-    def remove_admin(self, user_id: int):
-        self._execute("DELETE FROM admins WHERE user_id = ?", (user_id,))
-        self._execute("DELETE FROM admin_locations WHERE user_id = ?", (user_id,))
-
-    def set_locations(self, user_id: int, locations: Iterable[str]):
-        self._execute("DELETE FROM admin_locations WHERE user_id = ?", (user_id,))
-        for loc in set(locations):
-            if loc in LOCATIONS:
-                self._execute(
-                    "INSERT OR IGNORE INTO admin_locations (user_id, location_id) VALUES (?, ?)",
-                    (user_id, loc),
-                )
-
-    def set_role(self, user_id: int, role: str, receive_notifications: Optional[bool] = None):
-        if role not in ("admin", "super", "god"):
-            return
-        if receive_notifications is None:
-            receive_notifications = 0 if role == "super" else 1
-        self._execute(
-            "UPDATE admins SET role = ?, receive_notifications = ? WHERE user_id = ?",
-            (role, int(receive_notifications), user_id),
-        )
-
-    def get_all_admins(self) -> List[int]:
-        db_admins = [r[0] for r in self._execute("SELECT user_id FROM admins", fetchall=True)]
-        env_super = {int(aid) for aid in ADMIN_IDS if aid.isdigit()}
-        env_god = {int(gid) for gid in GOD_IDS if gid.isdigit()}
-        return list({*db_admins, *env_super, *env_god})
-
-    def get_locations_for_admin(self, user_id: int) -> List[str]:
-        rows = self._execute(
-            "SELECT location_id FROM admin_locations WHERE user_id = ?",
-            (user_id,),
-            fetchall=True,
-        )
+    async def get_locations_for_admin(self, user_id: int) -> list:
+        rows = await self._execute("SELECT location_id FROM admin_locations WHERE user_id = ?", (user_id,), fetchall=True)
         return [r[0] for r in rows]
 
-    def is_admin(self, user_id: int) -> bool:
-        return user_id in self.get_all_admins()
+    async def add_admin(self, user_id: int, username: str, added_by: int, role: str = 'admin', receive_notifications: int = 1, locations: list = None):
+        await self._execute("""
+            INSERT INTO admins (user_id, username, role, added_by, receive_notifications)
+            VALUES (?, ?, ?, ?, ?)
+            ON CONFLICT(user_id) DO UPDATE SET
+                username=excluded.username,
+                role=excluded.role,
+                receive_notifications=excluded.receive_notifications
+        """, (user_id, username, role, added_by, int(receive_notifications)))
 
-    def is_super_admin(self, user_id: int) -> bool:
-        row = self._execute(
-            "SELECT role FROM admins WHERE user_id = ?",
-            (user_id,),
-            fetchone=True,
-        )
-        role = row[0] if row else None
-        env_super = {int(aid) for aid in ADMIN_IDS if aid.isdigit()}
-        env_god = {int(gid) for gid in GOD_IDS if gid.isdigit()}
-        return role in ("super", "god") or user_id in env_super or user_id in env_god
+        if locations is not None:
+            await self._execute("DELETE FROM admin_locations WHERE user_id = ?", (user_id,))
+            if locations:
+                for loc in locations:
+                    await self._execute("INSERT INTO admin_locations (user_id, location_id) VALUES (?, ?)", (user_id, loc))
 
-    def is_god(self, user_id: int) -> bool:
-        row = self._execute(
-            "SELECT role FROM admins WHERE user_id = ?",
-            (user_id,),
-            fetchone=True,
-        )
-        return bool(row and row[0] == "god")
+    async def remove_admin(self, user_id: int):
+        await self._execute("DELETE FROM admins WHERE user_id = ?", (user_id,))
 
-    def has_location_access(self, user_id: int, location_id: str) -> bool:
-        if self.is_super_admin(user_id):
+    async def has_location_access(self, user_id: int, location_id: str) -> bool:
+        if await self.is_super_admin(user_id):
             return True
-        return location_id in self.get_locations_for_admin(user_id)
+        res = await self._execute("SELECT 1 FROM admin_locations WHERE user_id = ? AND location_id = ?", (user_id, location_id), fetchone=True)
+        return bool(res)
 
-    def get_notification_targets(self, location_id: str) -> List[int]:
-        rows = self._execute(
-            """
-            SELECT a.user_id
+    async def get_notification_targets(self, location_id: str) -> list:
+        query = """
+            SELECT DISTINCT a.user_id 
             FROM admins a
-            LEFT JOIN admin_locations l ON a.user_id = l.user_id
-            WHERE a.receive_notifications = 1
-              AND (a.role = 'god' OR l.location_id = ? OR (a.role = 'super' AND l.location_id IS NULL))
-            """,
-            (location_id,),
-            fetchall=True,
-        )
-        return list({r[0] for r in rows})
-
+            LEFT JOIN admin_locations al ON a.user_id = al.user_id
+            WHERE (al.location_id = ? OR a.role IN ('super', 'god')) AND a.receive_notifications = 1
+        """
+        rows = await self._execute(query, (location_id,), fetchall=True)
+        targets = set([r[0] for r in rows])
+        for gid in GOD_IDS:
+            try:
+                targets.add(int(gid))
+            except:
+                pass
+        return list(targets)
 
 admin_db = AdminDatabase()

@@ -21,7 +21,6 @@ DB_DIR.mkdir(parents=True, exist_ok=True)
 
 BOT_TOKEN = os.getenv("BOT_TOKEN")
 ADMIN_BOT_TOKEN = os.getenv("ADMIN_BOT_TOKEN", BOT_TOKEN)
-ADMIN_IDS = [aid for aid in os.getenv("ADMIN_IDS", "").split(",") if aid]
 
 LOCATIONS = {
     "1": {"name": "Medelin на Корятовича", "address": "вул. Корятовича, 5"},
@@ -30,15 +29,6 @@ LOCATIONS = {
     "4": {"name": "Medelin Bozdosh", "address": "Слов'янська набережна, 23А"},
     "5": {"name": "Medelin на Гойди", "address": "вул. Гойди, 4"},
     "6": {"name": "Medelin на Новака", "address": "вул. Новака, 2"},
-}
-
-LOCATION_ADMINS = {
-    "1": [aid for aid in os.getenv("ADMIN_IDS_KORYATOVICHA", "").split(",") if aid],
-    "2": [aid for aid in os.getenv("ADMIN_IDS_ZAKARPATSLA", "").split(",") if aid],
-    "3": [aid for aid in os.getenv("ADMIN_IDS_PROSPECT", "").split(",") if aid],
-    "4": [aid for aid in os.getenv("ADMIN_IDS_BOZDOSH", "").split(",") if aid],
-    "5": [aid for aid in os.getenv("ADMIN_IDS_GOYDY", "").split(",") if aid],
-    "6": [aid for aid in os.getenv("ADMIN_IDS_NOVAKA", "").split(",") if aid],
 }
 
 GOD_IDS = [gid for gid in os.getenv("GOD_IDS", "").split(",") if gid]

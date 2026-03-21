@@ -1,59 +1,67 @@
-import sqlite3
-from datetime import datetime
-from functools import wraps
-from app.common.config import ERRORS_DB_PATH
+import aiosqlite
+import traceback
+from aiogram import Router, Bot
+from aiogram.types import ErrorEvent
+from app.common.config import ERRORS_DB_PATH, GOD_IDS
 
-def log_error_to_db(user_id: int, username: str, firstname: str, lastname: str, command: str, error_message: str):
-    with sqlite3.connect(ERRORS_DB_PATH) as conn:
-        cursor = conn.cursor()
-        cursor.execute(
-            """CREATE TABLE IF NOT EXISTS errors (
-                id INTEGER PRIMARY KEY AUTOINCREMENT, 
-                user_id INTEGER, 
-                username TEXT, 
-                firstname TEXT, 
-                lastname TEXT, 
-                command TEXT, 
-                error_message TEXT, 
-                timestamp TEXT
-            )"""
-        )
-        cursor.execute(
-            "INSERT INTO errors (user_id, username, firstname, lastname, command, error_message, timestamp) VALUES (?, ?, ?, ?, ?, ?, ?)",
-            (
-                user_id,
-                username,
-                firstname,
-                lastname,
-                command,
-                error_message,
-                datetime.now().strftime("%Y-%m-%d %H:%M:%S")
-            ),
-        )
-        conn.commit()
+error_router = Router()
 
-def error_handler(command: str):
-    def decorator(func):
-        @wraps(func)
-        async def wrapper(event, *args, **kwargs):
-            try:
-                return await func(event, *args, **kwargs)
-            except Exception as e:
-                # Обробка як для повідомлень, так і для колбеків
-                user = event.from_user
-                log_error_to_db(
-                    user_id=user.id,
-                    username=user.username if user.username else "N/A",
-                    firstname=user.first_name if user.first_name else "N/A",
-                    lastname=user.last_name if user.last_name else "N/A",
-                    command=command,
-                    error_message=str(e)
+async def log_error_to_db(user_id, username, command, error_message, traceback_text):
+    try:
+        async with aiosqlite.connect(ERRORS_DB_PATH) as conn:
+            await conn.execute("""
+                CREATE TABLE IF NOT EXISTS errors (
+                    id INTEGER PRIMARY KEY AUTOINCREMENT,
+                    user_id INTEGER,
+                    username TEXT,
+                    command TEXT,
+                    error_message TEXT,
+                    traceback TEXT,
+                    timestamp DATETIME DEFAULT CURRENT_TIMESTAMP
                 )
-                
-                error_text = "Вибачте, виникла помилка при виконанні запиту. Адміністратор вже працює над цим."
-                if hasattr(event, "message"): # CallbackQuery
-                    await event.message.answer(error_text)
-                else: # Message
-                    await event.answer(error_text)
-        return wrapper
-    return decorator
+            """)
+            await conn.execute(
+                "INSERT INTO errors (user_id, username, command, error_message, traceback) VALUES (?, ?, ?, ?, ?)",
+                (user_id, username, command, error_message, traceback_text)
+            )
+            await conn.commit()
+    except Exception as e:
+        print(f"CRITICAL: Failed to log error to DB: {e}")
+
+@error_router.error()
+async def global_error_handler(event: ErrorEvent, bot: Bot):
+    error = event.exception
+    etype = type(error).__name__
+    emsg = str(error)
+    tb = "".join(traceback.format_exception(type(error), error, error.__traceback__))
+    
+    user_id = None
+    username = None
+    command = "Unknown"
+    
+    if event.update.message:
+        user_id = event.update.message.from_user.id
+        username = event.update.message.from_user.username
+        command = event.update.message.text
+    elif event.update.callback_query:
+        user_id = event.update.callback_query.from_user.id
+        username = event.update.callback_query.from_user.username
+        command = event.update.callback_query.data
+
+    await log_error_to_db(user_id, username, command, f"{etype}: {emsg}", tb)
+    
+    error_text = "⚠️ Вибачте, виникла помилка. Ми вже працюємо над її виправленням!"
+    
+    try:
+        if event.update.message:
+            await event.update.message.answer(error_text)
+        elif event.update.callback_query:
+            await event.update.callback_query.message.answer(error_text)
+    except:
+        pass
+        
+    for god_id in GOD_IDS:
+        try:
+            await bot.send_message(god_id, f"🚨 **ERROR REPORT**\nUser: {user_id} (@{username})\nType: {etype}\nMsg: {emsg}")
+        except:
+            pass
