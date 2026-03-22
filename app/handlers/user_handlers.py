@@ -35,6 +35,16 @@ class CoffeeBeanStates(StatesGroup):
     choosing_location = State()
     entering_phone = State()
 
+@user_router.message(F.text == "🏠 НА ГОЛОВНУ")
+async def process_back_to_main(message: Message, state: FSMContext):
+    await state.clear()
+    is_admin = await admin_db.is_admin(message.from_user.id)
+    await message.answer(
+        "☕️ <b>ГОЛОВНЕ МЕНЮ</b>",
+        reply_markup=kb.get_main_menu(is_admin),
+        parse_mode="HTML",
+    )
+
 @user_router.message(CommandStart())
 async def cmd_start(message: Message, state: FSMContext):
     await state.clear()
@@ -349,8 +359,10 @@ async def menu_item(callback: CallbackQuery, state: FSMContext):
     _, category, name, price, description, volume, calories = row
     parts = [f"✨ <b>{name}</b>", f"💰 <b>Ціна:</b> {price}"]
     if volume: parts.append(f"⚖️ <b>Обʼєм:</b> {volume}")
-    if calories: parts.append(f"🔋 <b>Енерг. цінність:</b> {calories} ккал")
-    if description: parts.append(f"\n📝 {description}")
+    if calories:
+        cal_val = str(calories).replace("ккал", "").strip()
+        parts.append(f"🔋 <b>Енерг. цінність:</b> {cal_val} ккал")
+    if description: parts.append(f"\n📜 <b>Склад:</b>\n{description}")
     await callback.message.edit_text(
         "\n".join(parts),
         reply_markup=kb.get_item_actions_kb(item_id),
@@ -359,21 +371,37 @@ async def menu_item(callback: CallbackQuery, state: FSMContext):
 
 @user_router.callback_query(F.data.startswith("add_to_cart_"))
 async def menu_add_to_cart(callback: CallbackQuery, state: FSMContext):
-    item_id = callback.data.replace("add_to_cart_", "", 1)
+    data = callback.data.split("_")
+    item_id = data[3]
+    milk_type = data[4] if len(data) > 4 else None
+    
     row = await menu_db.get_item_by_id(item_id)
     if not row:
         await callback.answer("Не знайдено."); return
+    
+    category = row[1]
     name = row[2]
-    data = await state.get_data()
-    cart = list(data.get("cart", []))
-    cart.append(name)
-    await state.update_data(cart=cart)
-    await callback.answer("Додано в кошик.")
+    
+    # If it's coffee and milk isn't selected yet, ask for milk
+    if not milk_type and category in ("Кава", "Кава На Альтернативному", "Масала", "Какао"):
+        await callback.message.edit_reply_markup(reply_markup=kb.get_milk_kb(item_id))
+        return
 
-    booking_mode = bool(data.get("booking_mode"))
+    final_name = name
+    if milk_type:
+        milk_map = {"std": "звичайне", "coco": "кокосове", "soy": "соєве", "almond": "мигдалеве", "lacfree": "безлактозне"}
+        final_name += f" ({milk_map.get(milk_type, milk_type)})"
+
+    state_data = await state.get_data()
+    cart = list(state_data.get("cart", []))
+    cart.append(final_name)
+    await state.update_data(cart=cart)
+    await callback.answer(f"Додано: {final_name}")
+
+    booking_mode = bool(state_data.get("booking_mode"))
     categories = await menu_db.get_categories()
     await callback.message.edit_text(
-        "🍽️ <b>МЕНЮ / ЗАМОВЛЕННЯ</b>\n\nОберіть категорію:",
+        "🍽️ <b>МЕНЮ / ЗАМОВЛЕННЯ</b>\n\nДодано в кошик. Оберіть категорію:",
         reply_markup=kb.get_categories_kb(categories, booking_mode=booking_mode, cart_count=len(cart)),
         parse_mode="HTML",
     )
@@ -418,7 +446,7 @@ def _locations_list_kb() -> InlineKeyboardMarkup:
     keyboard = []
     row = []
     for loc_id, loc in LOCATIONS.items():
-        row.append(InlineKeyboardButton(text=f"{loc['name']}", callback_data=f"locinfo_{loc_id}"))
+        row.append(InlineKeyboardButton(text=f"📍 {loc['name']}", callback_data=f"locinfo_{loc_id}"))
         if len(row) == 2:
             keyboard.append(row)
             row = []
@@ -440,7 +468,7 @@ async def location_info(callback: CallbackQuery):
     address = loc.get("address", "—")
     maps_url = f"https://www.google.com/maps/search/?api=1&query={quote_plus(address + ', Uzhhorod')}"
 
-    text = f"""🏬 <b>{loc['name']}</b>
+    text = f"""📍 <b>{loc['name']}</b>
 
 📍 <b>Адреса:</b> <code>{address}</code>
 ⏰ <b>Години роботи:</b> {WORK_START_HOUR:02d}:00–{WORK_END_HOUR:02d}:00
@@ -494,8 +522,15 @@ async def beans_start(message: Message, state: FSMContext):
     if not items:
         await message.answer("☕️ <b>Кава в зернах</b>\n\nПоки що немає позицій.", parse_mode="HTML")
         return
+    
+    text = (
+        "☕️ <b>КАВА В ЗЕРНАХ «MEDELIN»</b>\n\n"
+        "Відкрийте для себе світ вишуканої кави. Ми ретельно відбираємо та обсмажуємо найкращі зерна, "
+        "щоб ви могли насолодитися ідеальним смаком вдома.\n\n"
+        "Оберіть сорт для замовлення:"
+    )
     await message.answer(
-        "☕️ <b>КАВА В ЗЕРНАХ</b>\n\nОберіть сорт:",
+        text,
         reply_markup=kb.get_beans_kb(items),
         parse_mode="HTML",
     )
@@ -508,13 +543,18 @@ async def beans_chosen(callback: CallbackQuery, state: FSMContext):
     if not row:
         await callback.answer("Не знайдено."); return
     
-    raw_name = row[2] or ""
+    _, category, raw_name, price, description, volume, calories = row
     clean_name, _ = strip_gramovka(raw_name)
     
-    await state.update_data(bean_name=clean_name, base_price=row[3])
+    await state.update_data(bean_name=clean_name, base_price=price)
+    
+    text = f"☕️ <b>{clean_name}</b>"
+    if description:
+        text += f"\n\n📜 <b>Опис:</b>\n{description}"
+    text += "\n\n⚖️ <b>Оберіть вагу:</b>"
     
     await callback.message.edit_text(
-        f"☕️ <b>{clean_name}</b>\n\nОберіть вагу:",
+        text,
         reply_markup=kb.get_beans_weight_kb(),
         parse_mode="HTML",
     )

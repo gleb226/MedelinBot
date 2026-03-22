@@ -39,16 +39,78 @@ async def get_user_role(user_id):
     if await admin_db.is_super_admin(user_id): return "super"
     return "admin"
 
-@admin_router.message(F.text == "📋 МЕНЮ")
-async def manage_menu(message: Message):
+# --- GLOBAL ADMIN COMMANDS (MUST BE AT TOP TO PREVENT STATE INTERCEPTION) ---
+
+@admin_router.message(F.text == "↩️ НА ГОЛОВНУ")
+async def back_to_main_from_admin(message: Message, state: FSMContext):
+    await state.clear()
+    from app.handlers.user_handlers import cmd_start
+    await cmd_start(message, state)
+
+@admin_router.message(F.text.in_([kb.BTN_ADMIN, "🔐 АДМІН-ПАНЕЛЬ", "🛰 АДМІН-ПАНЕЛЬ"]))
+async def admin_panel_enter(message: Message, state: FSMContext):
     if not await admin_db.is_admin(message.from_user.id): return
+    await state.clear()
+    role = await get_user_role(message.from_user.id)
+    is_on_shift = await admin_db.is_on_shift(message.from_user.id)
+    await message.answer(f"🔐 <b>ВХІД В АДМІНІСТРАТИВНУ ПАНЕЛЬ</b>\nВаша роль: <b>{role.upper()}</b>", reply_markup=akb.get_main_admin_menu(is_on_shift, role), parse_mode="HTML")
+
+@admin_router.message(F.text == "🟢 ПОЧАТИ ЗМІНУ")
+async def start_shift(message: Message, state: FSMContext):
+    if not await admin_db.is_admin(message.from_user.id): return
+    if await get_user_role(message.from_user.id) != "admin": return
+    await state.clear()
+    await admin_db.set_shift_status(message.from_user.id, True)
+    await message.answer("🟢 <b>ЗМІНУ РОЗПОЧАТО!</b>", reply_markup=akb.get_main_admin_menu(True, "admin"), parse_mode="HTML")
+
+@admin_router.message(F.text == "🔴 ЗАВЕРШИТИ ЗМІНУ")
+async def end_shift(message: Message, state: FSMContext):
+    if not await admin_db.is_admin(message.from_user.id): return
+    if await get_user_role(message.from_user.id) != "admin": return
+    await state.clear()
+    await admin_db.set_shift_status(message.from_user.id, False)
+    await message.answer("🔴 <b>ЗМІНУ ЗАВЕРШЕНО.</b>", reply_markup=akb.get_main_admin_menu(False, "admin"), parse_mode="HTML")
+
+@admin_router.message(F.text == "🆕 НОВІ ЗАПИТИ")
+async def show_new_bookings(message: Message, state: FSMContext):
+    if not await admin_db.is_admin(message.from_user.id): return
+    await state.clear()
+    role = await get_user_role(message.from_user.id)
+    if role in ("super", "god"): 
+        bookings = await booking_db.get_new_bookings()
+    else:
+        locations = await admin_db.get_locations_for_admin(message.from_user.id)
+        bookings = await booking_db.get_new_bookings_by_locations(locations)
+    
+    if not bookings: 
+        await message.answer("📭 <b>Наразі немає нових запитів.</b>", parse_mode="HTML")
+        return
+        
+    for b in bookings:
+        t = f"📥 <b>НОВИЙ ЗАПИТ</b>\n\n👤 <b>Клієнт:</b> {b['fullname']}\n📞 <code>{b['phone']}</code>\n🏛 <b>Заклад:</b> {LOCATIONS[b['location_id']]['name']}\n🕔 <b>Час:</b> {b['date_time']}\n👥 <b>Гостей:</b> {b['people_count']}\n🥘 <b>Замовлення:</b> {b['cart']}"
+        await message.answer(t, reply_markup=akb.get_booking_manage_kb(b['id']), parse_mode="HTML")
+
+@admin_router.message(F.text == "👥 КОМАНДА")
+async def manage_admins(message: Message, state: FSMContext):
+    if not await admin_db.is_admin(message.from_user.id): return
+    await state.clear()
+    is_super = await admin_db.is_super_admin(message.from_user.id)
+    await message.answer("👥 <b>КЕРУВАННЯ КОМАНДОЮ</b>", reply_markup=akb.get_admin_management_kb(is_super), parse_mode="HTML")
+
+@admin_router.message(F.text == "📋 МЕНЮ")
+async def manage_menu(message: Message, state: FSMContext):
+    if not await admin_db.is_admin(message.from_user.id): return
+    await state.clear()
     if await get_user_role(message.from_user.id) != "god":
         await message.answer("❌ Доступ до керування меню має тільки <b>БОГ</b>.", parse_mode="HTML")
         return
     await message.answer("📋 <b>КЕРУВАННЯ МЕНЮ</b>\nОберіть дію:", reply_markup=akb.get_menu_manage_kb(), parse_mode="HTML")
 
+# --- CALLBACKS & STATES ---
+
 @admin_router.callback_query(F.data == "menu_back")
-async def back_to_menu_manage(callback: CallbackQuery):
+async def back_to_menu_manage(callback: CallbackQuery, state: FSMContext):
+    await state.clear()
     if await get_user_role(callback.from_user.id) != "god": return
     await callback.message.edit_text("📋 <b>КЕРУВАННЯ МЕНЮ</b>\nОберіть дію:", reply_markup=akb.get_menu_manage_kb(), parse_mode="HTML")
 
@@ -189,7 +251,7 @@ async def edit_item_cat_sel(callback: CallbackQuery):
         await callback.message.edit_text(f"✏️ Категорія: <b>{cat}</b>\nОберіть позицію:", reply_markup=akb.get_items_in_category_kb(item_list, "m_edt_it"), parse_mode="HTML")
     except: pass
 
-@admin_router.callback_query(F.data.startswith("m_edt_it_"), State(None))
+@admin_router.callback_query(F.data.startswith("m_edt_it_"))
 async def edit_item_select(callback: CallbackQuery, state: FSMContext):
     if await get_user_role(callback.from_user.id) != "god": return
     item_id = callback.data.replace("m_edt_it_", "")
@@ -217,85 +279,48 @@ async def edit_field_start(callback: CallbackQuery, state: FSMContext):
 async def edit_field_save(message: Message, state: FSMContext):
     if await get_user_role(message.from_user.id) != "god": return
     data = await state.get_data()
-    item_id = data['edit_id']
+    item_id = data.get('edit_id')
+    if not item_id:
+        await state.clear()
+        return
     field_map = {"name": "name", "price": "price", "desc": "description", "vol": "volume", "cal": "calories"}
-    db_field = field_map.get(data['edit_field'])
+    db_field = field_map.get(data.get('edit_field'))
     if db_field:
         await menu_db.update_item(item_id, {db_field: message.text})
         await message.answer("✅ Зміни збережено!")
     await state.clear()
-    await manage_menu(message)
-
-@admin_router.message(F.text.in_([kb.BTN_ADMIN, "🛰 АДМІН-ПАНЕЛЬ"]))
-async def admin_panel_enter(message: Message):
-    if not await admin_db.is_admin(message.from_user.id): return
-    role = await get_user_role(message.from_user.id)
-    is_on_shift = await admin_db.is_on_shift(message.from_user.id)
-    await message.answer(f"🔐 <b>ВХІД В АДМІНІСТРАТИВНУ ПАНЕЛЬ</b>\nВаша роль: <b>{role.upper()}</b>", reply_markup=akb.get_main_admin_menu(is_on_shift, role), parse_mode="HTML")
-
-@admin_router.message(F.text == "🟢 ПОЧАТИ ЗМІНУ")
-async def start_shift(message: Message):
-    if not await admin_db.is_admin(message.from_user.id): return
-    if await get_user_role(message.from_user.id) != "admin": return
-    await admin_db.set_shift_status(message.from_user.id, True)
-    await message.answer("🟢 <b>ЗМІНУ РОЗПОЧАТО!</b>", reply_markup=akb.get_main_admin_menu(True, "admin"), parse_mode="HTML")
-
-@admin_router.message(F.text == "🔴 ЗАВЕРШИТИ ЗМІНУ")
-async def end_shift(message: Message):
-    if not await admin_db.is_admin(message.from_user.id): return
-    if await get_user_role(message.from_user.id) != "admin": return
-    await admin_db.set_shift_status(message.from_user.id, False)
-    await message.answer("🔴 <b>ЗМІНУ ЗАВЕРШЕНО.</b>", reply_markup=akb.get_main_admin_menu(False, "admin"), parse_mode="HTML")
-
-@admin_router.message(F.text == "🆕 НОВІ ЗАПИТИ")
-async def show_new_bookings(message: Message):
-    if not await admin_db.is_admin(message.from_user.id): return
-    role = await get_user_role(message.from_user.id)
-    if role in ("super", "god"): bookings = await booking_db.get_new_bookings()
-    else:
-        locations = await admin_db.get_locations_for_admin(message.from_user.id)
-        bookings = await booking_db.get_new_bookings_by_locations(locations)
-    if not bookings: await message.answer("📭 <b>Наразі немає нових запитів.</b>", parse_mode="HTML"); return
-    for b in bookings:
-        t = f"📥 <b>НОВИЙ ЗАПИТ</b>\n\n👤 <b>Клієнт:</b> {b['fullname']}\n📞 <code>{b['phone']}</code>\n🏛 <b>Заклад:</b> {LOCATIONS[b['location_id']]['name']}\n🕔 <b>Час:</b> {b['date_time']}\n👥 <b>Гостей:</b> {b['people_count']}\n🥘 <b>Замовлення:</b> {b['cart']}"
-        await message.answer(t, reply_markup=akb.get_booking_manage_kb(b['id']), parse_mode="HTML")
-
-@admin_router.message(F.text == "👥 КОМАНДА ТА ПРАВА")
-async def manage_admins(message: Message):
-    if not await admin_db.is_admin(message.from_user.id): return
-    role = await get_user_role(message.from_user.id)
-    await message.answer("👥 <b>КЕРУВАННЯ КОМАНДОЮ</b>", reply_markup=akb.get_admin_management_kb(role in ("super", "god", "admin")), parse_mode="HTML")
-
-@admin_router.message(F.text == "↩️ ПОВЕРНУТИСЬ ДО ГОЛОВНОЇ")
-async def back_to_main_from_admin(message: Message, state: FSMContext):
-    from app.handlers.user_handlers import cmd_start
-    await cmd_start(message, state)
+    await manage_menu(message, state)
 
 @admin_router.callback_query(F.data.startswith("adm_confirm_"))
 async def confirm_booking(callback: CallbackQuery, bot: Bot):
-    bid = callback.data.split("_")[2]; b = await booking_db.get_booking_by_id(bid)
+    bid = callback.data.split("_")[2]
+    b = await booking_db.get_booking_by_id(bid)
+    if not b: return
     await booking_db.update_status(bid, "confirmed")
-    try: await bot.send_message(b["user_id"], "✅ <b>ВАШЕ ЗАМОВЛЕННЯ ПІДТВЕРДЖЕНО!</b>\nЧекаємо на вас.", parse_mode="HTML")
+    try: 
+        await bot.send_message(b["user_id"], "✅ <b>ВАШЕ ЗАМОВЛЕННЯ ПІДТВЕРДЖЕНО!</b>\nЧекаємо на вас.", parse_mode="HTML")
     except: pass
     await callback.message.edit_text(callback.message.text + "\n\n✅ <b>ПІДТВЕРДЖЕНО</b>", parse_mode="HTML")
 
 @admin_router.callback_query(F.data.startswith("adm_cancel_"))
 async def cancel_booking(callback: CallbackQuery, bot: Bot):
-    bid = callback.data.split("_")[2]; b = await booking_db.get_booking_by_id(bid)
+    bid = callback.data.split("_")[2]
+    b = await booking_db.get_booking_by_id(bid)
+    if not b: return
     await booking_db.update_status(bid, "cancelled")
     refund_msg = ""
-    userdata = b or {}
+    userdata = b
     pay_id = userdata.get("payment_id")
     provider_id = userdata.get("provider_payment_id")
     if pay_id:
         refunded, refund_error = await refund_telegram_payment(bot, pay_id, provider_id)
         if refunded:
-            refund_msg = f"\\n\\n💳 <b>ОПЛАЧЕНО.</b>\\nГроші повернено автоматично."
+            refund_msg = "\n\n💳 <b>ОПЛАЧЕНО.</b>\nГроші повернено автоматично."
             await booking_db.set_refund_status(bid, "refunded")
-            try: await bot.send_message(userdata.get("user_id"), "❌ <b>ЗАМОВЛЕННЯ ВІДХИЛЕНО.</b>\\nГроші повернено автоматично.", parse_mode="HTML")
+            try: await bot.send_message(userdata.get("user_id"), "❌ <b>ЗАМОВЛЕННЯ ВІДХИЛЕНО.</b>\nГроші повернено автоматично.", parse_mode="HTML")
             except: pass
         else:
-            refund_msg = f"\\n\\n⚠️ <b>Повернення не вдалося:</b> {refund_error}"
+            refund_msg = f"\n\n⚠️ <b>Повернення не вдалося:</b> {refund_error}"
             await booking_db.set_refund_status(bid, f"refund_failed:{refund_error}")
     else:
         try: await bot.send_message(userdata.get("user_id"), "❌ <b>ЗАМОВЛЕННЯ ВІДХИЛЕНО.</b>", parse_mode="HTML")
@@ -401,5 +426,6 @@ async def delete_admin_confirm(callback: CallbackQuery):
 
 @admin_router.callback_query(F.data == "adm_back_to_manage")
 async def back_to_team_manage(callback: CallbackQuery, state: FSMContext):
-    await state.clear(); role = await get_user_role(callback.from_user.id)
-    await callback.message.edit_text("👥 <b>КЕРУВАННЯ КОМАНДОЮ</b>", reply_markup=akb.get_admin_management_kb(role in ("super", "god", "admin")), parse_mode="HTML")
+    await state.clear()
+    is_super = await admin_db.is_super_admin(callback.from_user.id)
+    await callback.message.edit_text("👥 <b>КЕРУВАННЯ КОМАНДОЮ</b>", reply_markup=akb.get_admin_management_kb(is_super), parse_mode="HTML")

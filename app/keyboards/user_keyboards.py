@@ -101,10 +101,20 @@ def get_locations_kb():
     row = []
     for loc_id, loc_info in LOCATIONS.items():
         name = loc_info['name'].replace("Medelin ", "")
-        row.append(InlineKeyboardButton(text=f"🏛 {name}", callback_data=f"loc_{loc_id}"))
+        row.append(InlineKeyboardButton(text=f"📍 {name}", callback_data=f"loc_{loc_id}"))
         if len(row) == 2: keyboard.append(row); row = []
     if row: keyboard.append(row)
     return InlineKeyboardMarkup(inline_keyboard=keyboard)
+
+def get_milk_kb(item_id):
+    return InlineKeyboardMarkup(inline_keyboard=[
+        [InlineKeyboardButton(text="🥛 Звичайне", callback_data=f"add_to_cart_{item_id}_std")],
+        [InlineKeyboardButton(text="🥥 Кокосове", callback_data=f"add_to_cart_{item_id}_coco")],
+        [InlineKeyboardButton(text="🥛 Соєве", callback_data=f"add_to_cart_{item_id}_soy")],
+        [InlineKeyboardButton(text="🥛 Мигдалеве", callback_data=f"add_to_cart_{item_id}_almond")],
+        [InlineKeyboardButton(text="🥛 Безлактозне", callback_data=f"add_to_cart_{item_id}_lacfree")],
+        [InlineKeyboardButton(text="⬅️ НАЗАД", callback_data=f"item_{item_id}")]
+    ])
 
 def get_categories_kb(categories, booking_mode=False, cart_count=0):
     keyboard = []; row = []
@@ -119,7 +129,6 @@ def get_categories_kb(categories, booking_mode=False, cart_count=0):
         'Фреш': '🍊',
         'Чай': '🫖',
         'Мілк': '🥛',
-        'Матча': '🍵',
         'Матча': '🍵',
         'Какао': '🍫'
     }
