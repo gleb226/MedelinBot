@@ -1,64 +1,74 @@
-import aiosqlite
 from datetime import datetime
-from app.common.config import USERS_DB_PATH
+from app.databases.mongo_client import get_db, projection_without_mongo_id
 from app.utils.phone_utils import format_phone, normalize_phone
 
-class UserDatabase:
-    def __init__(self):
-        self.db_name = USERS_DB_PATH
-        self.conn = None
 
+class UserDatabase:
     async def connect(self):
-        self.conn = await aiosqlite.connect(self.db_name)
-        await self.conn.create_function("normalize_phone", 1, normalize_phone)
-        await self._init_database()
+        await get_db()
 
     async def close(self):
-        if self.conn: await self.conn.close(); self.conn = None
-
-    async def _ensure_conn(self):
-        if not self.conn:
-            self.conn = await aiosqlite.connect(self.db_name)
-            await self.conn.create_function("normalize_phone", 1, normalize_phone)
-            await self._init_database()
-
-    async def _execute(self, query, params=(), fetchone=False, fetchall=False):
-        await self._ensure_conn()
-        async with self.conn.cursor() as cursor:
-            await cursor.execute(query, params)
-            if not query.strip().upper().startswith("SELECT"):
-                await self.conn.commit()
-            if fetchone: return await cursor.fetchone()
-            if fetchall: return await cursor.fetchall()
-
-    async def _init_database(self):
-        await self._execute("CREATE TABLE IF NOT EXISTS users (user_id INTEGER PRIMARY KEY, first_name TEXT, username TEXT, phone TEXT, joined_at TEXT DEFAULT CURRENT_TIMESTAMP)")
-        await self._migrate_schema()
-
-    async def _migrate_schema(self):
-        cols = {row[1] for row in await self._execute("PRAGMA table_info(users)", fetchall=True)}
-        if "phone" not in cols: await self._execute("ALTER TABLE users ADD COLUMN phone TEXT")
+        return
 
     async def add_user(self, user_id: int, first_name: str, username: str, phone: str = None):
+        db = await get_db()
         pv = format_phone(phone) if phone else None
-        ex = await self._execute("SELECT user_id FROM users WHERE user_id = ?", (user_id,), fetchone=True)
-        if not ex: await self._execute("INSERT INTO users (user_id, first_name, username, phone, joined_at) VALUES (?, ?, ?, ?, ?)", (user_id, first_name, username, pv, datetime.now().strftime("%Y-%m-%d %H:%M:%S")))
-        else: await self._execute("UPDATE users SET first_name = ?, username = ?, phone = COALESCE(?, phone) WHERE user_id = ?", (first_name, username, pv, user_id))
+        digits = normalize_phone(pv) if pv else None
+        set_doc = {
+            "first_name": first_name,
+            "username": username,
+            "username_lc": (username or "").lower(),
+        }
+        if pv:
+            set_doc.update({"phone": pv, "phone_digits": digits})
+        await db.users.update_one(
+            {"user_id": int(user_id)},
+            {
+                "$set": set_doc,
+                "$setOnInsert": {"joined_at": datetime.utcnow()},
+            },
+            upsert=True,
+        )
 
     async def set_phone(self, user_id: int, phone: str):
-        await self._execute("UPDATE users SET phone = ? WHERE user_id = ?", (format_phone(phone), user_id))
+        db = await get_db()
+        pv = format_phone(phone)
+        await db.users.update_one(
+            {"user_id": int(user_id)},
+            {"$set": {"phone": pv, "phone_digits": normalize_phone(pv)}},
+            upsert=True,
+        )
 
     async def get_phone(self, user_id: int):
-        r = await self._execute("SELECT phone FROM users WHERE user_id = ?", (user_id,), fetchone=True)
-        return r[0] if r else None
+        db = await get_db()
+        r = await db.users.find_one({"user_id": int(user_id)}, {"_id": 0, "phone": 1})
+        return r.get("phone") if r else None
 
     async def get_user_by_username(self, username: str):
-        if not username: return None
-        return await self._execute("SELECT user_id, first_name, username, phone FROM users WHERE LOWER(username) = LOWER(?)", (username,), fetchone=True)
+        if not username:
+            return None
+        db = await get_db()
+        r = await db.users.find_one({"username_lc": username.lower()}, projection_without_mongo_id())
+        if not r:
+            return None
+        return (r["user_id"], r.get("first_name"), r.get("username"), r.get("phone"))
+
+    async def get_user_by_id(self, user_id: int):
+        db = await get_db()
+        r = await db.users.find_one({"user_id": int(user_id)}, projection_without_mongo_id())
+        if not r:
+            return None
+        return (r["user_id"], r.get("first_name"), r.get("username"), r.get("phone"))
 
     async def get_user_by_phone(self, phone: str):
         t = normalize_phone(phone)
-        if not t: return None
-        return await self._execute("SELECT user_id, first_name, username, phone FROM users WHERE normalize_phone(phone) = ?", (t,), fetchone=True)
+        if not t:
+            return None
+        db = await get_db()
+        r = await db.users.find_one({"phone_digits": t}, projection_without_mongo_id())
+        if not r:
+            return None
+        return (r["user_id"], r.get("first_name"), r.get("username"), r.get("phone"))
+
 
 user_db = UserDatabase()

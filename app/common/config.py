@@ -20,8 +20,10 @@ SALES_DB_PATH = DB_DIR / "sales.db"
 
 DB_DIR.mkdir(parents=True, exist_ok=True)
 
+MONGO_URI = os.getenv("MONGO_URI", "").strip()
+MONGO_DB_NAME = os.getenv("MONGO_DB_NAME", "medelinbot").strip() or "medelinbot"
+
 BOT_TOKEN = os.getenv("BOT_TOKEN")
-ADMIN_BOT_TOKEN = os.getenv("ADMIN_BOT_TOKEN", BOT_TOKEN)
 PAYMENT_TOKEN = os.getenv("PAYMENT_TOKEN", "2051251535:TEST:OTk5MDA4ODgxLTAwNQ")
 WORK_START_HOUR = int(os.getenv("WORK_START_HOUR", 8))
 WORK_END_HOUR = int(os.getenv("WORK_END_HOUR", 20))

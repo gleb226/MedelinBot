@@ -1,58 +1,183 @@
-import aiosqlite
-from app.common.config import MENU_DB_PATH
+import re
+from bson import ObjectId
+from typing import Any
+
+from app.databases.mongo_client import get_db
+
+
+_GRAM_RE = re.compile(
+    r"""
+    (?:[\(\[\{]?\s*)?
+    (?P<num>\d+(?:[.,]\d+)?)
+    \s*
+    (?P<unit>кг|kg|г|гр|грам|грамм)
+    (?:\s*[\)\]\}]?)?
+    \s*$
+    """,
+    re.IGNORECASE | re.VERBOSE,
+)
+
+
+def strip_gramovka(name: str) -> tuple[str, bool]:
+    if not name:
+        return name, False
+    original = name
+    s = name.strip()
+    s = re.sub(r"[\s\-–—:]+$", "", s)
+    m = _GRAM_RE.search(s)
+    if not m:
+        return original, False
+    base = s[: m.start()].strip()
+    base = re.sub(r"[\s\-–—:]+$", "", base).strip()
+    return (base if base else original), True
+
+
+def parse_gramovka_grams(name: str) -> int | None:
+    if not name:
+        return None
+    s = name.strip()
+    s = re.sub(r"[\s\-–—:]+$", "", s)
+    m = _GRAM_RE.search(s)
+    if not m:
+        return None
+    num_s = (m.group("num") or "").replace(",", ".").strip()
+    try:
+        num = float(num_s)
+    except Exception:
+        return None
+    unit = (m.group("unit") or "").lower()
+    grams = int(round(num * 1000)) if unit in ("кг", "kg") else int(round(num))
+    return grams if grams > 0 else None
+
+
+def _doc_id(doc: dict[str, Any]) -> str:
+    oid = doc.get("_id")
+    if isinstance(oid, ObjectId):
+        return str(oid)
+    return str(oid) if oid is not None else ""
+
 
 class MenuDatabase:
-    def __init__(self):
-        self.db_name = MENU_DB_PATH
-        self.conn = None
-
     async def connect(self):
-        self.conn = await aiosqlite.connect(self.db_name)
-        await self._init_database()
+        await get_db()
 
     async def close(self):
-        if self.conn: await self.conn.close(); self.conn = None
-
-    async def _ensure_conn(self):
-        if not self.conn:
-            self.conn = await aiosqlite.connect(self.db_name)
-            await self._init_database()
-
-    async def _execute(self, query, params=(), fetchone=False, fetchall=False):
-        await self._ensure_conn()
-        async with self.conn.cursor() as cursor:
-            await cursor.execute(query, params)
-            if not query.strip().upper().startswith("SELECT"):
-                await self.conn.commit()
-            if fetchone: return await cursor.fetchone()
-            if fetchall: return await cursor.fetchall()
-
-    async def _init_database(self):
-        await self._execute("CREATE TABLE IF NOT EXISTS menu (id INTEGER PRIMARY KEY AUTOINCREMENT, category TEXT, name TEXT, price TEXT, description TEXT, volume TEXT, calories TEXT)")
-        await self._migrate_schema()
-
-    async def _migrate_schema(self):
-        cols = {row[1] for row in await self._execute("PRAGMA table_info(menu)", fetchall=True)}
-        if "calories" not in cols: await self._execute("ALTER TABLE menu ADD COLUMN calories TEXT DEFAULT ''")
+        return
 
     async def add_item(self, category, name, price, description="", volume="", calories=""):
-        await self._execute("INSERT INTO menu (category, name, price, description, volume, calories) VALUES (?, ?, ?, ?, ?, ?)", (category, name, price, description, volume, calories))
+        db = await get_db()
+        res = await db.menu.insert_one(
+            {
+                "category": category,
+                "name": name,
+                "price": price,
+                "description": description or "",
+                "volume": volume or "",
+                "calories": calories or "",
+            }
+        )
+        return str(res.inserted_id)
 
     async def get_categories(self):
-        res = await self._execute("SELECT DISTINCT category FROM menu", fetchall=True)
-        return [r[0] for r in res] if res else []
+        db = await get_db()
+        cats = await db.menu.distinct("category")
+        return list(cats or [])
 
     async def get_items_by_category(self, category):
-        return await self._execute("SELECT id, name, price, description, volume, calories FROM menu WHERE category = ?", (category,), fetchall=True)
+        db = await get_db()
+        cur = db.menu.find({"category": category})
+        items = await cur.sort("_id", 1).to_list(length=None)
+        rows = []
+        for i in (items or []):
+            rows.append(
+                (_doc_id(i), i.get("name"), i.get("price"), i.get("description"), i.get("volume"), i.get("calories"))
+            )
+
+        if category != "Кава в зернах":
+            return rows
+
+        chosen: dict[str, tuple] = {}
+        meta: dict[str, tuple[bool, str]] = {}
+        raw_by_id = { _doc_id(x): (x.get("name") or "") for x in (items or []) }
+        for r in rows:
+            item_id, display_name, *_ = r
+            raw = raw_by_id.get(item_id, "") or (display_name or "")
+            base, had = strip_gramovka(raw)
+            key = (base or raw).strip().lower()
+            if not key:
+                continue
+            if key not in chosen:
+                chosen[key] = r
+                meta[key] = (had, item_id)
+                continue
+            prev_had, prev_id = meta[key]
+            if prev_had and not had:
+                chosen[key] = r
+                meta[key] = (had, item_id)
+            elif prev_had == had and item_id < prev_id:
+                chosen[key] = r
+                meta[key] = (had, item_id)
+
+        return [chosen[k] for k in sorted(chosen.keys(), key=lambda kk: meta[kk][1])]
 
     async def get_item_by_id(self, item_id):
-        return await self._execute("SELECT * FROM menu WHERE id = ?", (item_id,), fetchone=True)
+        db = await get_db()
+        try:
+            oid = ObjectId(item_id)
+        except Exception:
+            return None
+        d = await db.menu.find_one({"_id": oid})
+        if not d:
+            return None
+        return (
+            _doc_id(d),
+            d.get("category"),
+            d.get("name"),
+            d.get("price"),
+            d.get("description"),
+            d.get("volume"),
+            d.get("calories") or "",
+        )
 
     async def get_item_by_name(self, name):
-        return await self._execute("SELECT * FROM menu WHERE name = ?", (name,), fetchone=True)
+        db = await get_db()
+        d = await db.menu.find_one({"name": name})
+        if not d:
+            return None
+        return (
+            _doc_id(d),
+            d.get("category"),
+            d.get("name"),
+            d.get("price"),
+            d.get("description"),
+            d.get("volume"),
+            d.get("calories") or "",
+        )
+
+    async def update_item(self, item_id: str, update: dict) -> bool:
+        db = await get_db()
+        try:
+            oid = ObjectId(item_id)
+        except Exception:
+            return False
+        update = {k: v for k, v in (update or {}).items() if k in {"category", "name", "price", "description", "volume", "calories"}}
+        if not update:
+            return False
+        res = await db.menu.update_one({"_id": oid}, {"$set": update})
+        return bool(res.matched_count)
+
+    async def delete_item(self, item_id: str) -> bool:
+        db = await get_db()
+        try:
+            oid = ObjectId(item_id)
+        except Exception:
+            return False
+        res = await db.menu.delete_one({"_id": oid})
+        return bool(res.deleted_count)
 
     async def clear_menu(self):
-        await self._execute("DELETE FROM menu")
-        await self._execute("DELETE FROM sqlite_sequence WHERE name='menu'")
+        db = await get_db()
+        await db.menu.delete_many({})
+
 
 menu_db = MenuDatabase()

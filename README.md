@@ -217,13 +217,11 @@ docker-compose logs -f bot
 
 ```env
 # Telegram Bot
-TELEGRAM_BOT_TOKEN=your_bot_token_here
-TELEGRAM_BOT_USERNAME=MedelinBot
+BOT_TOKEN=your_bot_token_here
 
 # База даних
-DATABASE_URL=postgresql://user:password@localhost:5432/medelinbot
-DB_POOL_SIZE=20
-DB_MAX_OVERFLOW=10
+MONGO_URI=mongodb+srv://Medelb:<07072010Hm!>@medelinbot.1bwvthp.mongodb.net/?appName=MedelinBot
+MONGO_DB_NAME=medelinbot
 
 # Redis
 REDIS_URL=redis://localhost:6379/0
@@ -234,8 +232,7 @@ SECRET_KEY=your_secret_key_here
 ENCRYPTION_KEY=your_encryption_key_here
 
 # Платежі
-LIQPAY_PUBLIC_KEY=your_liqpay_public_key
-LIQPAY_PRIVATE_KEY=your_liqpay_private_key
+PAYMENT_TOKEN=your_payment_provider_token
 
 # Налаштування кав'ярні
 CAFE_NAME=Medelin

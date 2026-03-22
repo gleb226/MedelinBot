@@ -1,70 +1,152 @@
-import aiosqlite
-from app.common.config import BOOKINGS_DB_PATH
+from __future__ import annotations
+
+from datetime import datetime, timedelta
+from typing import Any
+
+from bson import ObjectId
+from app.databases.mongo_client import get_db
 from app.utils.phone_utils import normalize_phone
 
-class BookingDatabase:
-    def __init__(self):
-        self.db_name = BOOKINGS_DB_PATH
-        self.conn = None
 
+class BookingDatabase:
     async def connect(self):
-        self.conn = await aiosqlite.connect(self.db_name)
-        self.conn.row_factory = aiosqlite.Row
-        await self.conn.create_function("normalize_phone", 1, normalize_phone)
-        await self._init_database()
+        await get_db()
 
     async def close(self):
-        if self.conn: await self.conn.close(); self.conn = None
+        return
 
-    async def _ensure_conn(self):
-        if not self.conn:
-            self.conn = await aiosqlite.connect(self.db_name)
-            self.conn.row_factory = aiosqlite.Row
-            await self.conn.create_function("normalize_phone", 1, normalize_phone)
-            await self._init_database()
-
-    async def _execute(self, query, params=(), fetchone=False, fetchall=False):
-        await self._ensure_conn()
-        async with self.conn.cursor() as cursor:
-            await cursor.execute(query, params)
-            if not query.strip().upper().startswith("SELECT"):
-                await self.conn.commit()
-            if fetchone: return await cursor.fetchone()
-            if fetchall: return await cursor.fetchall()
-
-    async def _init_database(self):
-        await self._execute("CREATE TABLE IF NOT EXISTS bookings (id INTEGER PRIMARY KEY AUTOINCREMENT, user_id INTEGER, username TEXT, fullname TEXT, phone TEXT, location_id TEXT, date_time TEXT, people_count TEXT, wishes TEXT, cart TEXT, status TEXT DEFAULT 'new', order_type TEXT DEFAULT 'booking', table_number TEXT DEFAULT '', timestamp DATETIME DEFAULT CURRENT_TIMESTAMP)")
-        await self._migrate_schema()
-
-    async def _migrate_schema(self):
-        cols = {row[1] for row in await self._execute("PRAGMA table_info(bookings)", fetchall=True)}
-        if "order_type" not in cols: await self._execute("ALTER TABLE bookings ADD COLUMN order_type TEXT DEFAULT 'booking'")
-        if "table_number" not in cols: await self._execute("ALTER TABLE bookings ADD COLUMN table_number TEXT DEFAULT ''")
-
-    async def add_booking(self, user_id, username, fullname, phone, location_id, date_time, people_count, wishes, cart, order_type="booking", table_number=""):
-        await self._ensure_conn()
-        async with self.conn.cursor() as cur:
-            await cur.execute("INSERT INTO bookings (user_id, username, fullname, phone, location_id, date_time, people_count, wishes, cart, order_type, table_number) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)", (user_id, username, fullname, phone, location_id, date_time, people_count, wishes, cart, order_type, table_number))
-            await self.conn.commit()
-            return cur.lastrowid
+    async def add_booking(
+        self,
+        user_id,
+        username,
+        fullname,
+        phone,
+        location_id,
+        date_time,
+        people_count,
+        wishes,
+        cart,
+        order_type="booking",
+        table_number="",
+    ):
+        db = await get_db()
+        digits = normalize_phone(phone)
+        oid = ObjectId()
+        doc = {
+            "_id": oid,
+            "id": str(oid),
+            "user_id": int(user_id) if user_id is not None else None,
+            "username": username,
+            "fullname": fullname,
+            "phone": phone,
+            "phone_digits": digits,
+            "location_id": str(location_id),
+            "date_time": date_time,
+            "people_count": people_count,
+            "wishes": wishes,
+            "cart": cart,
+            "status": "new",
+            "order_type": order_type,
+            "table_number": table_number or "",
+            "payment_id": None,
+            "provider_payment_id": None,
+            "notified_admin_ids": [],
+            "refund_status": None,
+            "created_at": datetime.utcnow(),
+        }
+        await db.bookings.insert_one(doc)
+        return str(oid)
 
     async def get_new_bookings(self):
-        return await self._execute("SELECT * FROM bookings WHERE status = 'new' ORDER BY timestamp DESC", fetchall=True)
+        db = await get_db()
+        cur = db.bookings.find({"status": "new"}).sort("created_at", -1)
+        return await cur.to_list(length=None)
 
     async def get_new_bookings_by_locations(self, location_ids):
-        if not location_ids: return []
-        ps = ",".join(["?"] * len(location_ids))
-        return await self._execute(f"SELECT * FROM bookings WHERE status = 'new' AND location_id IN ({ps}) ORDER BY timestamp DESC", tuple(location_ids), fetchall=True)
+        if not location_ids:
+            return []
+        db = await get_db()
+        cur = db.bookings.find(
+            {"status": "new", "location_id": {"$in": [str(x) for x in location_ids]}},
+        ).sort("created_at", -1)
+        return await cur.to_list(length=None)
 
     async def update_status(self, booking_id, status):
-        await self._execute("UPDATE bookings SET status = ? WHERE id = ?", (status, booking_id))
+        db = await get_db()
+        oid = ObjectId(str(booking_id))
+        await db.bookings.update_one({"_id": oid}, {"$set": {"status": status}})
 
     async def get_booking_by_id(self, booking_id):
-        return await self._execute("SELECT * FROM bookings WHERE id = ?", (booking_id,), fetchone=True)
+        try:
+            oid = ObjectId(str(booking_id))
+        except Exception:
+            return None
+        db = await get_db()
+        return await db.bookings.find_one({"_id": oid})
 
-    async def get_user_by_phone(self, phone: str):
+    async def set_payment_id(self, booking_id: str, payment_id: str, provider_payment_id: str | None = None):
+        db = await get_db()
+        oid = ObjectId(str(booking_id))
+        await db.bookings.update_one(
+            {"_id": oid},
+            {
+                "$set": {
+                    "payment_id": payment_id,
+                    "provider_payment_id": provider_payment_id,
+                }
+            },
+        )
+
+    async def set_refund_status(self, booking_id: str, status: str):
+        db = await get_db()
+        oid = ObjectId(str(booking_id))
+        await db.bookings.update_one(
+            {"_id": oid},
+            {"$set": {"refund_status": str(status)}},
+        )
+
+    async def mark_admin_notified(self, booking_id: str, admin_id: int):
+        db = await get_db()
+        oid = ObjectId(str(booking_id))
+        await db.bookings.update_one(
+            {"_id": oid},
+            {"$addToSet": {"notified_admin_ids": int(admin_id)}},
+        )
+
+    async def get_unnotified_new_bookings_for_admin(self, admin_id: int, location_ids: list):
+        if not location_ids:
+            return []
+        db = await get_db()
+        cur = db.bookings.find(
+            {
+                "status": "new",
+                "location_id": {"$in": [str(x) for x in location_ids]},
+                "notified_admin_ids": {"$ne": int(admin_id)},
+            },
+        ).sort("created_at", -1)
+        return await cur.to_list(length=None)
+
+    async def get_user_by_phone(self, phone: str) -> Any:
         t = normalize_phone(phone)
-        if not t: return None
-        return await self._execute("SELECT user_id, fullname, username, phone FROM bookings WHERE normalize_phone(phone) = ? ORDER BY timestamp DESC", (t,), fetchone=True)
+        if not t:
+            return None
+        db = await get_db()
+        return await db.bookings.find_one(
+            {"phone_digits": t},
+            {"_id": 0, "user_id": 1, "fullname": 1, "username": 1, "phone": 1},
+            sort=[("created_at", -1)],
+        )
+
+    async def cleanup_old_bookings(self, months: int = 6) -> int:
+        db = await get_db()
+        cutoff = datetime.utcnow() - timedelta(days=int(months) * 30)
+        res = await db.bookings.delete_many({"created_at": {"$lt": cutoff}})
+        return int(res.deleted_count or 0)
+
+    async def clear_all_bookings(self) -> int:
+        db = await get_db()
+        res = await db.bookings.delete_many({})
+        return int(res.deleted_count or 0)
+
 
 booking_db = BookingDatabase()

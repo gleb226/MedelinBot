@@ -1,30 +1,25 @@
-import aiosqlite
 import traceback
+from datetime import datetime
 from aiogram import Router, Bot
 from aiogram.types import ErrorEvent
-from app.common.config import ERRORS_DB_PATH, GOD_IDS
+from app.common.config import GOD_IDS
+from app.databases.mongo_client import get_db
 
 error_router = Router()
 
 async def log_error_to_db(user_id, username, command, error_message, traceback_text):
     try:
-        async with aiosqlite.connect(ERRORS_DB_PATH) as conn:
-            await conn.execute("""
-                CREATE TABLE IF NOT EXISTS errors (
-                    id INTEGER PRIMARY KEY AUTOINCREMENT,
-                    user_id INTEGER,
-                    username TEXT,
-                    command TEXT,
-                    error_message TEXT,
-                    traceback TEXT,
-                    timestamp DATETIME DEFAULT CURRENT_TIMESTAMP
-                )
-            """)
-            await conn.execute(
-                "INSERT INTO errors (user_id, username, command, error_message, traceback) VALUES (?, ?, ?, ?, ?)",
-                (user_id, username, command, error_message, traceback_text)
-            )
-            await conn.commit()
+        db = await get_db()
+        await db.errors.insert_one(
+            {
+                "user_id": int(user_id) if user_id is not None else None,
+                "username": username,
+                "command": command,
+                "error_message": error_message,
+                "traceback": traceback_text,
+                "timestamp": datetime.utcnow(),
+            }
+        )
     except Exception as e:
         print(f"CRITICAL: Failed to log error to DB: {e}")
 
@@ -42,11 +37,11 @@ async def global_error_handler(event: ErrorEvent, bot: Bot):
     if event.update.message:
         user_id = event.update.message.from_user.id
         username = event.update.message.from_user.username
-        command = event.update.message.text
+        command = event.update.message.text or "NonTextMessage"
     elif event.update.callback_query:
         user_id = event.update.callback_query.from_user.id
         username = event.update.callback_query.from_user.username
-        command = event.update.callback_query.data
+        command = event.update.callback_query.data or "EmptyCallbackData"
 
     await log_error_to_db(user_id, username, command, f"{etype}: {emsg}", tb)
 
