@@ -81,7 +81,20 @@ class MenuDatabase:
     async def get_categories(self):
         db = await get_db()
         cats = await db.menu.distinct("category")
-        return list(cats or [])
+        
+        cats_list = list(cats or [])
+        
+        # Custom sorting logic
+        def sort_key(cat):
+            if cat == "Кава в зернах":
+                return (0, cat)
+            if cat == "Кава":
+                return (1, cat)
+            return (2, cat)
+
+        cats_list.sort(key=sort_key)
+        
+        return cats_list
 
     async def get_items_by_category(self, category):
         db = await get_db()

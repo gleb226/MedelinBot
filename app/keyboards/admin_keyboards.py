@@ -36,8 +36,9 @@ def get_main_admin_menu(is_on_shift: bool = False, role: str = "admin"):
     return ReplyKeyboardMarkup(keyboard=keyboard, resize_keyboard=True)
 
 def get_admin_management_kb(is_super: bool = False):
-    buttons = [[InlineKeyboardButton(text="➕ ДОДАТИ ПЕРСОНАЛ", callback_data="adm_add_new")]]
+    buttons = []
     if is_super:
+        buttons.append([InlineKeyboardButton(text="➕ ДОДАТИ ПЕРСОНАЛ", callback_data="adm_add_new")])
         buttons.append([InlineKeyboardButton(text="🗑 ВИДАЛИТИ ДОСТУП", callback_data="adm_remove")])
     buttons.append([InlineKeyboardButton(text="📋 СПИСОК КОМАНДИ", callback_data="adm_list")])
     return InlineKeyboardMarkup(inline_keyboard=buttons)

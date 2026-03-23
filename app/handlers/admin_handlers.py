@@ -1,5 +1,6 @@
 from aiogram import Router, F, Bot
 from aiogram.types import Message, CallbackQuery, InlineKeyboardMarkup, InlineKeyboardButton
+from aiogram.exceptions import TelegramBadRequest
 from aiogram.fsm.context import FSMContext
 from aiogram.fsm.state import State, StatesGroup
 from app.keyboards import admin_keyboards as akb
@@ -26,6 +27,9 @@ class MenuStates(StatesGroup):
     waiting_category = State()
     waiting_name = State()
     waiting_price = State()
+    waiting_price_250 = State()
+    waiting_price_500 = State()
+    waiting_price_1000 = State()
     waiting_desc = State()
     waiting_volume = State()
     waiting_calories = State()
@@ -154,12 +158,56 @@ async def add_item_cat_text(message: Message, state: FSMContext):
 async def add_item_name(message: Message, state: FSMContext):
     if await get_user_role(message.from_user.id) != "god": return
     await state.update_data(name=message.text)
-    await message.answer("💰 Введіть ціну (наприклад: 50 або 50 ₴):")
-    await state.set_state(MenuStates.waiting_price)
+    data = await state.get_data()
+    if data.get("category") == "Кава в зернах":
+        await message.answer("💰 Введіть ціну за 250г:")
+        await state.set_state(MenuStates.waiting_price_250)
+    else:
+        await message.answer("💰 Введіть ціну (наприклад: 50 або 50 ₴):")
+        await state.set_state(MenuStates.waiting_price)
+
+@admin_router.message(MenuStates.waiting_price_250)
+async def add_item_price_250(message: Message, state: FSMContext):
+    if await get_user_role(message.from_user.id) != "god": return
+    price = message.text.strip()
+    if not any(char.isdigit() for char in price):
+        await message.answer("⚠️ Ціна має містити цифри.")
+        return
+    await state.update_data(price_250=price)
+    await message.answer("💰 Введіть ціну за 500г:")
+    await state.set_state(MenuStates.waiting_price_500)
+
+@admin_router.message(MenuStates.waiting_price_500)
+async def add_item_price_500(message: Message, state: FSMContext):
+    if await get_user_role(message.from_user.id) != "god": return
+    price = message.text.strip()
+    if not any(char.isdigit() for char in price):
+        await message.answer("⚠️ Ціна має містити цифри.")
+        return
+    await state.update_data(price_500=price)
+    await message.answer("💰 Введіть ціну за 1кг:")
+    await state.set_state(MenuStates.waiting_price_1000)
+
+@admin_router.message(MenuStates.waiting_price_1000)
+async def add_item_price_1000(message: Message, state: FSMContext):
+    if await get_user_role(message.from_user.id) != "god": return
+    price = message.text.strip()
+    if not any(char.isdigit() for char in price):
+        await message.answer("⚠️ Ціна має містити цифри.")
+        return
+    await state.update_data(price_1000=price)
+    await message.answer("📝 Введіть опис або надішліть '-' щоб пропустити:")
+    await state.set_state(MenuStates.waiting_desc)
 
 @admin_router.message(MenuStates.waiting_price)
 async def add_item_price(message: Message, state: FSMContext):
     if await get_user_role(message.from_user.id) != "god": return
+    data = await state.get_data()
+    if data.get("category") == "Кава в зернах":
+        # This should not happen, but as a fallback
+        await message.answer("💰 Введіть ціну за 250г:")
+        await state.set_state(MenuStates.waiting_price_250)
+        return
     price = message.text.strip()
     if not any(char.isdigit() for char in price):
         await message.answer("⚠️ Ціна має містити цифри.")
@@ -191,14 +239,32 @@ async def add_item_calories(message: Message, state: FSMContext):
     calories = message.text if message.text != "-" else ""
     await state.update_data(calories=calories)
     data = await state.get_data()
-    text = (f"🔍 <b>ПЕРЕВІРКА:</b>\n\n📂 {data['category']}\n▫️ {data['name']}\n💰 {data['price']}\n📝 {data['description'] or 'без опису'}\n⚖️ {data['volume'] or 'не вказано'}\n🔋 {data['calories'] or 'не вказано'}")
+    
+    price_str = ""
+    if data.get("category") == "Кава в зернах":
+        price_str = f"💰 250г: {data['price_250']} ₴\n💰 500г: {data['price_500']} ₴\n💰 1кг: {data['price_1000']} ₴"
+    else:
+        price_str = f"💰 {data['price']}"
+
+    text = (f"🔍 <b>ПЕРЕВІРКА:</b>\n\n📂 {data['category']}\n▫️ {data['name']}\n{price_str}\n📝 {data['description'] or 'без опису'}\n⚖️ {data['volume'] or 'не вказано'}\n🔋 {data['calories'] or 'не вказано'}")
     await message.answer(text, reply_markup=akb.get_yes_no_kb("menu_save", "menu_back"), parse_mode="HTML")
 
 @admin_router.callback_query(F.data == "menu_save")
 async def save_new_item(callback: CallbackQuery, state: FSMContext):
     if await get_user_role(callback.from_user.id) != "god": return
     data = await state.get_data()
-    await menu_db.add_item(data['category'], data['name'], data['price'], data['description'], data['volume'], data['calories'])
+    
+    price = {}
+    if data.get("category") == "Кава в зернах":
+        price = {
+            "250": data['price_250'],
+            "500": data['price_500'],
+            "1000": data['price_1000']
+        }
+    else:
+        price = data['price']
+        
+    await menu_db.add_item(data['category'], data['name'], price, data['description'], data['volume'], data['calories'])
     await callback.message.edit_text("✅ <b>ПОЗИЦІЮ ДОДАНО!</b>", reply_markup=akb.get_menu_manage_kb(), parse_mode="HTML")
     await state.clear()
 
@@ -257,8 +323,16 @@ async def edit_item_select(callback: CallbackQuery, state: FSMContext):
     item_id = callback.data.replace("m_edt_it_", "")
     item = await menu_db.get_item_by_id(item_id)
     if not item: return
-    await state.update_data(edit_id=item_id)
-    text = (f"✏️ <b>РЕДАГУВАННЯ:</b>\n▫️ {item[2]}\n💰 {item[3]}\n📝 {item[4] or '—'}\n⚖️ {item[5] or '—'}\n🔋 {item[6] or '—'}")
+    await state.update_data(edit_id=item_id, current_item=item)
+
+    price_str = ""
+    if item[1] == "Кава в зернах" and isinstance(item[3], dict):
+        price_dict = item[3]
+        price_str = f"{price_dict.get('250', 'n/a')} / {price_dict.get('500', 'n/a')} / {price_dict.get('1000', 'n/a')} ₴"
+    else:
+        price_str = str(item[3])
+
+    text = (f"✏️ <b>РЕДАГУВАННЯ:</b>\n▫️ {item[2]}\n💰 {price_str}\n📝 {item[4] or '—'}\n⚖️ {item[5] or '—'}\n🔋 {item[6] or '—'}")
     kb_edit = InlineKeyboardMarkup(inline_keyboard=[
         [InlineKeyboardButton(text="Назву", callback_data="edt_f_name"), InlineKeyboardButton(text="Ціну", callback_data="edt_f_price")],
         [InlineKeyboardButton(text="Опис", callback_data="edt_f_desc"), InlineKeyboardButton(text="Об'єм", callback_data="edt_f_vol")],
@@ -272,7 +346,14 @@ async def edit_field_start(callback: CallbackQuery, state: FSMContext):
     if await get_user_role(callback.from_user.id) != "god": return
     field = callback.data.replace("edt_f_", "")
     await state.update_data(edit_field=field)
-    await callback.message.answer("✏️ Введіть нове значення:")
+    data = await state.get_data()
+    current_item = data.get("current_item")
+    
+    prompt_text = "✏️ Введіть нове значення:"
+    if field == 'price' and current_item and current_item[1] == "Кава в зернах":
+        prompt_text = "✏️ Введіть 3 ціни через / (250г / 500г / 1кг):"
+
+    await callback.message.answer(prompt_text)
     await state.set_state(MenuStates.edit_waiting_value)
 
 @admin_router.message(MenuStates.edit_waiting_value)
@@ -283,11 +364,27 @@ async def edit_field_save(message: Message, state: FSMContext):
     if not item_id:
         await state.clear()
         return
+
+    field = data.get('edit_field')
+    current_item = data.get('current_item')
+    
+    update_value = message.text
+    
+    if field == 'price' and current_item and current_item[1] == "Кава в зернах":
+        try:
+            p250, p500, p1000 = [p.strip() for p in message.text.split('/')]
+            update_value = {"250": p250, "500": p500, "1000": p1000}
+        except ValueError:
+            await message.answer("⚠️ Невірний формат. Введіть 3 ціни через / (напр. 100 / 180 / 350)")
+            return
+
     field_map = {"name": "name", "price": "price", "desc": "description", "vol": "volume", "cal": "calories"}
-    db_field = field_map.get(data.get('edit_field'))
+    db_field = field_map.get(field)
+    
     if db_field:
-        await menu_db.update_item(item_id, {db_field: message.text})
+        await menu_db.update_item(item_id, {db_field: update_value})
         await message.answer("✅ Зміни збережено!")
+
     await state.clear()
     await manage_menu(message, state)
 
@@ -361,10 +458,12 @@ async def add_admin_name(message: Message, state: FSMContext):
 
 @admin_router.message(AdminStates.adding_admin_role)
 async def add_admin_role_text(message: Message, state: FSMContext):
-    valid_roles = ["admin", "super", "god"]
+    user_role = await get_user_role(message.from_user.id)
+    valid_roles = ["admin", "super", "god"] if user_role == "god" else ["admin", "super"]
+    
     role_input = message.text.strip().lower()
     if role_input not in valid_roles:
-        await message.answer("⚠️ Невірна роль. Введіть: <b>admin</b>, <b>super</b> або <b>god</b>", parse_mode="HTML")
+        await message.answer(f"⚠️ Невірна роль або недостатньо прав. Дозволені: <b>{', '.join(valid_roles)}</b>", parse_mode="HTML")
         return
     
     await state.update_data(new_admin_role=role_input)
@@ -402,27 +501,57 @@ async def add_admin_final_save(callback: CallbackQuery, state: FSMContext):
     await callback.message.edit_text(f"✅ Працівника <b>{data['new_admin_name']}</b> додано!", parse_mode="HTML")
     await callback.answer()
 
+async def get_visible_admins_for_user(user_id: int):
+    all_admins = await admin_db.get_admins_with_locations()
+    role = await get_user_role(user_id)
+    
+    if role == "god":
+        return all_admins
+    elif role == "super":
+        return [a for a in all_admins if a[3] != "god"]
+    else:
+        my_locs = set(await admin_db.get_locations_for_admin(user_id))
+        return [
+            a for a in all_admins 
+            if a[3] not in ("super", "god") and set(a[6]).intersection(my_locs)
+        ]
+
 @admin_router.callback_query(F.data == "adm_list")
 async def manage_team_list(callback: CallbackQuery):
     if not await admin_db.is_admin(callback.from_user.id): return
-    admins = await admin_db.get_admins_basic()
-    text = "👥 <b>СПИСОК КОМАНДИ:</b>\n\n" + "\n".join([f"▫️ {dname or uname or uid} — <b>{role.upper()}</b>" for uid, uname, dname, role in admins])
-    await callback.message.edit_text(text, reply_markup=akb.get_admin_management_kb(await admin_db.is_super_admin(callback.from_user.id)), parse_mode="HTML")
+    admins = await get_visible_admins_for_user(callback.from_user.id)
+    text = "👥 <b>СПИСОК КОМАНДИ:</b>\n\n" + "\n".join([f"▫️ {a[2] or a[1] or a[0]} — <b>{a[3].upper()}</b>" for a in admins])
+    try:
+        await callback.message.edit_text(text, reply_markup=akb.get_admin_management_kb(await admin_db.is_super_admin(callback.from_user.id)), parse_mode="HTML")
+    except TelegramBadRequest:
+        await callback.answer()
 
 @admin_router.callback_query(F.data == "adm_remove")
 async def remove_admin_list(callback: CallbackQuery):
     if not await admin_db.is_super_admin(callback.from_user.id): return
-    admins = await admin_db.get_admins_basic()
-    is_god = await admin_db.is_god(callback.from_user.id)
-    filtered = [a for a in admins if a[0] != callback.from_user.id and (a[3] != "god" or is_god)]
+    admins = await get_visible_admins_for_user(callback.from_user.id)
+    filtered = [a[:4] for a in admins if a[0] != callback.from_user.id]
     if not filtered: await callback.answer("Немає кого видаляти."); return
-    await callback.message.edit_text("🗑 <b>Оберіть для видалення:</b>", reply_markup=akb.get_admins_to_remove_kb(filtered), parse_mode="HTML")
+    try:
+        await callback.message.edit_text("🗑 <b>Оберіть для видалення:</b>", reply_markup=akb.get_admins_to_remove_kb(filtered), parse_mode="HTML")
+    except TelegramBadRequest:
+        await callback.answer()
 
 @admin_router.callback_query(F.data.startswith("adm_delete_"))
 async def delete_admin_confirm(callback: CallbackQuery):
     if not await admin_db.is_super_admin(callback.from_user.id): return
-    uid = int(callback.data.split("_")[2]); await admin_db.remove_admin(uid)
-    await callback.answer("Видалено!"); await remove_admin_list(callback)
+    uid = int(callback.data.split("_")[2])
+    
+    # Prevent super from deleting god
+    user_role = await get_user_role(callback.from_user.id)
+    target_admin = await admin_db.get_admin_by_id(uid)
+    if target_admin and target_admin.get("role") == "god" and user_role != "god":
+        await callback.answer("❌ Ви не можете видалити Бога!", show_alert=True)
+        return
+        
+    await admin_db.remove_admin(uid)
+    await callback.answer("Видалено!")
+    await remove_admin_list(callback)
 
 @admin_router.callback_query(F.data == "adm_back_to_manage")
 async def back_to_team_manage(callback: CallbackQuery, state: FSMContext):
