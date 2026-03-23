@@ -31,9 +31,9 @@ WORK_END_HOUR = int(os.getenv("WORK_END_HOUR", 20))
 LOCATIONS = {
     "1": {"name": "Medelin на Корятовича", "address": "вул. Корятовича, 5", "max_tables": 15},
     "2": {"name": "Medelin на Закарпатській", "address": "вул. Закарпатська, 44", "max_tables": 10},
-    "3": {"name": "Medelin на Проспекті Свободи", "address": "просп. Свободи, 54", "max_tables": 12},
-    "4": {"name": "Medelin на Боздоші", "address": "Слов'янська набережна, 23А", "max_tables": 20},
-    "5": {"name": "Medelin на Гойди", "address": "вул. Гойди, 4", "max_tables": 8},
+    "3": {"name": "Medelin на Проспекті", "address": "просп. Свободи, 55", "max_tables": 12},
+    "4": {"name": "Medelin Bozdosh", "address": "Слов'янська набережна Medelin", "max_tables": 20},
+    "5": {"name": "Medelin на Гойди", "address": "вул. Гойди, 10", "max_tables": 8},
     "6": {"name": "Medelin на Новака", "address": "вул. Новака, 2", "max_tables": 10},
 }
 
