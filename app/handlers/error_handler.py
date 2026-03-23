@@ -2,6 +2,7 @@ import traceback
 from datetime import datetime
 from aiogram import Router, Bot
 from aiogram.types import ErrorEvent
+from aiogram.exceptions import TelegramBadRequest
 from app.common.config import GOD_IDS
 from app.databases.mongo_client import get_db
 
@@ -26,6 +27,10 @@ async def log_error_to_db(user_id, username, command, error_message, traceback_t
 @error_router.error()
 async def global_error_handler(event: ErrorEvent, bot: Bot):
     error = event.exception
+    
+    if isinstance(error, TelegramBadRequest) and "message is not modified" in str(error).lower():
+        return True
+
     etype = type(error).__name__
     emsg = str(error)
     tb = "".join(traceback.format_exception(type(error), error, error.__traceback__))
