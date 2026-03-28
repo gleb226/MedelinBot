@@ -31,7 +31,7 @@ def get_main_admin_menu(is_on_shift: bool = False, role: str = "admin"):
     keyboard.append([KeyboardButton(text="🆕 НОВІ ЗАПИТИ"), KeyboardButton(text="👥 КОМАНДА")])
     if role == "boss":
         keyboard.append([KeyboardButton(text="📋 МЕНЮ"), KeyboardButton(text="🫘 ЗЕРНО")])
-        keyboard.append([KeyboardButton(text="📍 ЛОКАЦІЇ")])
+        keyboard.append([KeyboardButton(text="📍 ЛОКАЦІЇ"), KeyboardButton(text="📱 СОЦМЕРЕЖІ")])
     keyboard.append([KeyboardButton(text="↩️ НА ГОЛОВНУ")])
     return ReplyKeyboardMarkup(keyboard=keyboard, resize_keyboard=True)
 
@@ -90,6 +90,16 @@ def get_locations_manage_kb():
         ]
     )
 
+def get_socials_manage_kb():
+    return InlineKeyboardMarkup(
+        inline_keyboard=[
+            [InlineKeyboardButton(text="📱 ДОДАТИ СОЦМЕРЕЖУ", callback_data="soc_add")],
+            [InlineKeyboardButton(text="🗑 ВИДАЛИТИ СОЦМЕРЕЖУ", callback_data="soc_del")],
+            [InlineKeyboardButton(text="📋 СПИСОК СОЦМЕРЕЖ", callback_data="soc_list")],
+            [InlineKeyboardButton(text="⬅️ В АДМІН-ПАНЕЛЬ", callback_data="soc_back")],
+        ]
+    )
+
 def get_yes_no_kb(yes_cb: str, no_cb: str = "menu_no"):
     return InlineKeyboardMarkup(
         inline_keyboard=[
@@ -145,4 +155,11 @@ def get_locations_list_kb(locs, prefix="locs_delete"):
         prefix_str = "▫️" if "delete" in prefix else "✏️"
         buttons.append([InlineKeyboardButton(text=f"{prefix_str} {l['name']}", callback_data=f"{prefix}_{l['_id']}")])
     buttons.append([InlineKeyboardButton(text="⬅️ НАЗАД", callback_data="locs_back")])
+    return InlineKeyboardMarkup(inline_keyboard=buttons)
+
+def get_socials_list_kb(socs):
+    buttons = []
+    for s in socs:
+        buttons.append([InlineKeyboardButton(text=f"❌ {s['name']}", callback_data=f"soc_delete_{s['_id']}")])
+    buttons.append([InlineKeyboardButton(text="⬅️ НАЗАД", callback_data="soc_back")])
     return InlineKeyboardMarkup(inline_keyboard=buttons)
