@@ -1,5 +1,6 @@
 from aiogram.types import ReplyKeyboardMarkup, KeyboardButton, InlineKeyboardMarkup, InlineKeyboardButton
-from app.common.config import LOCATIONS, WORK_START_HOUR, WORK_END_HOUR
+from app.common.config import WORK_START_HOUR, WORK_END_HOUR
+from app.databases.location_database import location_db
 import datetime
 import hashlib
 
@@ -96,11 +97,13 @@ def get_pickup_time_kb():
             keyboard.append([InlineKeyboardButton(text=f"⏱ ~{t.strftime('%H:%M')}", callback_data=f"pickup_time_{t.strftime('%H:%M')}")])
     return InlineKeyboardMarkup(inline_keyboard=keyboard)
 
-def get_locations_kb():
+async def get_locations_kb():
     keyboard = []
     row = []
-    for loc_id, loc_info in LOCATIONS.items():
-        name = loc_info['name'].replace("Medelin ", "")
+    locations = await location_db.get_all_locations()
+    for loc in locations:
+        loc_id = str(loc['_id'])
+        name = loc['name'].replace("Medelin ", "")
         row.append(InlineKeyboardButton(text=f"📍 {name}", callback_data=f"loc_{loc_id}"))
         if len(row) == 2: keyboard.append(row); row = []
     if row: keyboard.append(row)
@@ -222,8 +225,23 @@ def get_contact_kb():
     return InlineKeyboardMarkup(inline_keyboard=[
         [InlineKeyboardButton(text="🌐 САЙТ", url="https://gleb226.github.io/MedelinSitel"),
          InlineKeyboardButton(text="📸 INSTAGRAM", url="https://instagram.com/medelincoffee")],
-        [InlineKeyboardButton(text="🔵 FACEBOOK", url="https://facebook.com/coffee.uzhgorod.ua"),
+        [InlineKeyboardButton(text="🔵 FACEBOOK", url="https://coffee.uzhgorod.ua"),
          InlineKeyboardButton(text="📞 ТЕЛЕФОН", callback_data="contact_phone")],
         [InlineKeyboardButton(text="✉️ EMAIL", callback_data="contact_email"),
          InlineKeyboardButton(text="💻 GITHUB", url="https://github.com/gleb226/MedelinBot")],
     ])
+
+async def get_locations_info_kb():
+    keyboard = []
+    row = []
+    locations = await location_db.get_all_locations()
+    for loc in locations:
+        loc_id = str(loc['_id'])
+        row.append(InlineKeyboardButton(text=f"📍 {loc['name']}", callback_data=f"locinfo_{loc_id}"))
+        if len(row) == 2:
+            keyboard.append(row)
+            row = []
+    if row:
+        keyboard.append(row)
+    keyboard.append([InlineKeyboardButton(text="🏠 НА ГОЛОВНУ", callback_data="back_main_menu_only")])
+    return InlineKeyboardMarkup(inline_keyboard=keyboard)

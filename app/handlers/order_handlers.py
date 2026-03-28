@@ -2,12 +2,13 @@ from aiogram import Router, F, Bot
 from aiogram.types import Message, CallbackQuery, InlineKeyboardMarkup, InlineKeyboardButton, ReplyKeyboardMarkup, KeyboardButton, LabeledPrice, PreCheckoutQuery
 from aiogram.fsm.context import FSMContext
 from aiogram.fsm.state import State, StatesGroup
-from app.common.config import LOCATIONS, PAYMENT_TOKEN
+from app.common.config import PAYMENT_TOKEN
 from app.databases.booking_database import booking_db
 from app.databases.user_database import user_db
 from app.databases.admin_database import admin_db
 from app.databases.menu_database import menu_db, parse_gramovka_grams
 from app.databases.sales_database import sales_db
+from app.databases.location_database import location_db
 from app.utils.logger import log_activity
 from app.utils.time_utils import is_working_hours, get_closed_message
 import app.keyboards.admin_keyboards as akb
@@ -62,14 +63,17 @@ async def booking_checkout(callback: CallbackQuery, state: FSMContext, bot: Bot)
 @order_router.callback_query(F.data.startswith("order_type_"), OrderStates.choosing_order_type)
 async def order_type_chosen(callback: CallbackQuery, state: FSMContext):
     await state.update_data(order_type=callback.data.replace("order_type_", ""))
-    await callback.message.edit_text("📍 <b>ОБЕРІТЬ ЗАКЛАД:</b>", reply_markup=kb.get_locations_kb(), parse_mode="HTML")
+    await callback.message.edit_text("📍 <b>ОБЕРІТЬ ЗАКЛАД:</b>", reply_markup=await kb.get_locations_kb(), parse_mode="HTML")
     await state.set_state(OrderStates.choosing_location)
 
 @order_router.callback_query(F.data.startswith("loc_"), OrderStates.choosing_location)
 async def order_loc_chosen(callback: CallbackQuery, state: FSMContext, bot: Bot):
-    loc_id = callback.data.split("_")[1]; await state.update_data(location_id=loc_id); data = await state.get_data()
+    loc_id = callback.data.split("_")[1]
+    await state.update_data(location_id=loc_id)
+    data = await state.get_data()
     if data.get('order_type') == 'in_house':
-        max_t = LOCATIONS[loc_id].get('max_tables', 10)
+        loc = await location_db.get_location_by_id(loc_id)
+        max_t = loc.get('max_tables', 10) if loc else 10
         await callback.message.edit_text(f"""🔢 <b>ВКАЖІТЬ НОМЕР ВАШОГО СТОЛИКА:</b>
 <i>(Доступно: 1 - {max_t})</i>""", parse_mode="HTML")
         await state.set_state(OrderStates.entering_table_number)
@@ -91,12 +95,14 @@ async def order_pickup_time_chosen(callback: CallbackQuery, state: FSMContext, b
 
 @order_router.message(OrderStates.entering_table_number)
 async def order_table_entered(message: Message, state: FSMContext, bot: Bot):
-    val = (message.text or "").strip(); data = await state.get_data(); loc_id = data.get('location_id')
+    val = (message.text or "").strip()
+    data = await state.get_data()
+    loc_id = data.get('location_id')
+    loc = await location_db.get_location_by_id(loc_id)
+    max_t = loc.get('max_tables', 10) if loc else 10
     if not val:
-        max_t = LOCATIONS[loc_id].get('max_tables', 10)
         await message.answer(f"Вкажіть номер столика (1 - {max_t}).", parse_mode="HTML")
         return
-    max_t = LOCATIONS[loc_id].get('max_tables', 10)
     if not val.isdigit() or not (1 <= int(val) <= max_t):
         await message.answer(f"❌ <b>НЕВІРНИЙ НОМЕР.</b> Вкажіть число від 1 до {max_t}:", parse_mode="HTML"); return
     await state.update_data(table_number=val)
@@ -110,7 +116,6 @@ async def ask_phone_order(target, state: FSMContext):
     if isinstance(target, CallbackQuery): await target.message.answer(text, parse_mode="HTML")
     else: await target.answer(text, parse_mode="HTML")
     await state.set_state(OrderStates.entering_phone)
-
 
 async def _ensure_phone_and_run(target, state: FSMContext, user, action):
     current_state = await state.get_state()
@@ -202,11 +207,13 @@ async def process_booking_order_final(user, chat_id, state, bot):
     data = await state.get_data(); loc_id = data.get('location_id'); is_admin = await admin_db.is_admin(user.id)
     rid = await booking_db.add_booking(user.id, user.username, user.full_name, data['phone'], loc_id, data.get('date_time'), data.get('people_count'), data.get('wishes'), ", ".join(data['cart']).upper(), "order_with_booking")
     await booking_db.set_payment_id(rid, data.get('payment_charge_id'), data.get('provider_payment_charge_id'))
+    loc = await location_db.get_location_by_id(loc_id)
+    loc_name = loc['name'] if loc else '—'
     msg = f"""🌟 <b>БРОНЮВАННЯ ТА ЗАМОВЛЕННЯ</b>
 
 👤 <b>КЛІЄНТ:</b> {user.full_name}
 📞 <b>ТЕЛЕФОН:</b> <code>{data['phone']}</code>
-🏛 <b>ЗАКЛАД:</b> {LOCATIONS[loc_id]['name']}
+🏛 <b>ЗАКЛАД:</b> {loc_name}
 🕒 <b>ЧАС:</b> {data.get('date_time')}
 👥 <b>ГОСТЕЙ:</b> {data.get('people_count')}
 💬 <b>ПОБАЖАННЯ:</b> {data.get('wishes') or "—"}
@@ -222,7 +229,7 @@ async def process_booking_order_final(user, chat_id, state, bot):
     await bot.send_message(
         chat_id,
         (
-            f"✅ <b>ДЯКУЄМО! ЗАПИТ ПЕРЕДАНО АДМІНІСТРАТОРУ.</b>\n\nМи чекаємо на вас у <b>{LOCATIONS[loc_id]['name']}</b>."
+            f"✅ <b>ДЯКУЄМО! ЗАПИТ ПЕРЕДАНО АДМІНІСТРАТОРУ.</b>\n\nМи чекаємо на вас у <b>{loc_name}</b>."
             if targets
             else "🕓 <b>ЗАПИТ ЗБЕРЕЖЕНО.</b>\n\nНаразі немає доступних адміністраторів на зміні. Спробуйте трохи пізніше або дочекайтесь — щойно адміністратор розпочне зміну, він отримає повідомлення."
         ),
@@ -238,11 +245,13 @@ async def process_beans_final(user, chat_id, state, bot):
     bean_name = str(data.get("bean_name") or "")
     weight = str(data.get("weight") or "")
     sort_line = bean_name if parse_gramovka_grams(bean_name) else f"{bean_name} ({weight}г)"
+    loc = await location_db.get_location_by_id(data['location_id'])
+    loc_name = loc['name'] if loc else '—'
     msg = f"""🌟 <b>НОВЕ ЗАБРОНЮВАННЯ ЗЕРЕН</b>
 
 👤 <b>КЛІЄНТ:</b> {user.full_name}
 📞 <b>ТЕЛЕФОН:</b> <code>{data['phone']}</code>
-🏛 <b>ЗАКЛАД:</b> {LOCATIONS[data['location_id']]['name']}
+🏛 <b>ЗАКЛАД:</b> {loc_name}
 ☕️ <b>СОРТ:</b> {sort_line}
 💰 <b>СТАТУС:</b> ОПЛАЧЕНО"""
     targets = await admin_db.get_notification_targets(data['location_id'])
@@ -255,13 +264,13 @@ async def process_beans_final(user, chat_id, state, bot):
     user_text = (
         f"""✅ <b>ДЯКУЄМО! ЗАПИТ ПЕРЕДАНО АДМІНІСТРАТОРУ.</b>
 
-Кава чекатиме на вас у <b>{LOCATIONS[data['location_id']]['name']}</b> протягом 2 днів."""
+Кава чекатиме на вас у <b>{loc_name}</b> протягом 2 днів."""
         if targets
         else f"""🕓 <b>ЗАПИТ ЗБЕРЕЖЕНО.</b>
 
 Наразі немає доступних адміністраторів на зміні. Спробуйте трохи пізніше або дочекайтесь — щойно адміністратор розпочне зміну, він отримає повідомлення.
 
-Кава чекатиме на вас у <b>{LOCATIONS[data['location_id']]['name']}</b> протягом 2 днів."""
+Кава чекатиме на вас у <b>{loc_name}</b> протягом 2 днів."""
     )
     await bot.send_message(chat_id, user_text, reply_markup=kb.get_main_menu(is_admin), parse_mode="HTML")
     await state.clear()
@@ -281,11 +290,13 @@ async def process_order_final(user, chat_id, state, bot):
         else f"🕒 <b>ЧАС:</b> {time_info}\n"
     )
     p_stat = "💰 <b>ОПЛАЧЕНО</b>" if not is_house else "⏳ <b>ОПЛАТА В ЗАКЛАДІ</b>"
+    loc = await location_db.get_location_by_id(data['location_id'])
+    loc_name = loc['name'] if loc else '—'
     msg = f"""🔔 <b>НОВЕ ЗАМОВЛЕННЯ</b>
 
 👤 <b>КЛІЄНТ:</b> {user.full_name}
 📞 <b>ТЕЛЕФОН:</b> <code>{data['phone']}</code>
-🏛 <b>ЗАКЛАД:</b> {LOCATIONS[data['location_id']]['name']}
+🏛 <b>ЗАКЛАД:</b> {loc_name}
 {t_line}🥘 <b>ПОЗИЦІЇ:</b> {cart_s}
 {p_stat}"""
     targets = await admin_db.get_notification_targets(data['location_id'])

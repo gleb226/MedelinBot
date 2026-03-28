@@ -1,9 +1,7 @@
 import re
 from bson import ObjectId
 from typing import Any
-
 from app.databases.mongo_client import get_db
-
 
 _GRAM_RE = re.compile(
     r"""
@@ -17,7 +15,6 @@ _GRAM_RE = re.compile(
     re.IGNORECASE | re.VERBOSE,
 )
 
-
 def strip_gramovka(name: str) -> tuple[str, bool]:
     if not name:
         return name, False
@@ -30,7 +27,6 @@ def strip_gramovka(name: str) -> tuple[str, bool]:
     base = s[: m.start()].strip()
     base = re.sub(r"[\s\-–—:]+$", "", base).strip()
     return (base if base else original), True
-
 
 def parse_gramovka_grams(name: str) -> int | None:
     if not name:
@@ -49,13 +45,11 @@ def parse_gramovka_grams(name: str) -> int | None:
     grams = int(round(num * 1000)) if unit in ("кг", "kg") else int(round(num))
     return grams if grams > 0 else None
 
-
 def _doc_id(doc: dict[str, Any]) -> str:
     oid = doc.get("_id")
     if isinstance(oid, ObjectId):
         return str(oid)
     return str(oid) if oid is not None else ""
-
 
 class MenuDatabase:
     async def connect(self):
@@ -64,7 +58,7 @@ class MenuDatabase:
     async def close(self):
         return
 
-    async def add_item(self, category, name, price, description="", volume="", calories=""):
+    async def add_item(self, category, name, price, description="", volume="", calories="", image_url=""):
         db = await get_db()
         res = await db.menu.insert_one(
             {
@@ -74,6 +68,7 @@ class MenuDatabase:
                 "description": description or "",
                 "volume": volume or "",
                 "calories": calories or "",
+                "image_url": image_url or "",
             }
         )
         return str(res.inserted_id)
@@ -81,19 +76,14 @@ class MenuDatabase:
     async def get_categories(self):
         db = await get_db()
         cats = await db.menu.distinct("category")
-        
         cats_list = list(cats or [])
-        
-        # Custom sorting logic
         def sort_key(cat):
             if cat == "Кава в зернах":
                 return (0, cat)
             if cat == "Кава":
                 return (1, cat)
             return (2, cat)
-
         cats_list.sort(key=sort_key)
-        
         return cats_list
 
     async def get_items_by_category(self, category):
@@ -103,12 +93,10 @@ class MenuDatabase:
         rows = []
         for i in (items or []):
             rows.append(
-                (_doc_id(i), i.get("name"), i.get("price"), i.get("description"), i.get("volume"), i.get("calories"))
+                (_doc_id(i), i.get("name"), i.get("price"), i.get("description"), i.get("volume"), i.get("calories"), i.get("image_url", ""))
             )
-
         if category != "Кава в зернах":
             return rows
-
         chosen: dict[str, tuple] = {}
         meta: dict[str, tuple[bool, str]] = {}
         raw_by_id = { _doc_id(x): (x.get("name") or "") for x in (items or []) }
@@ -130,7 +118,6 @@ class MenuDatabase:
             elif prev_had == had and item_id < prev_id:
                 chosen[key] = r
                 meta[key] = (had, item_id)
-
         return [chosen[k] for k in sorted(chosen.keys(), key=lambda kk: meta[kk][1])]
 
     async def get_item_by_id(self, item_id):
@@ -150,6 +137,7 @@ class MenuDatabase:
             d.get("description"),
             d.get("volume"),
             d.get("calories") or "",
+            d.get("image_url") or "",
         )
 
     async def get_item_by_name(self, name):
@@ -165,6 +153,7 @@ class MenuDatabase:
             d.get("description"),
             d.get("volume"),
             d.get("calories") or "",
+            d.get("image_url") or "",
         )
 
     async def update_item(self, item_id: str, update: dict) -> bool:
@@ -173,7 +162,8 @@ class MenuDatabase:
             oid = ObjectId(item_id)
         except Exception:
             return False
-        update = {k: v for k, v in (update or {}).items() if k in {"category", "name", "price", "description", "volume", "calories"}}
+        allowed_fields = {"category", "name", "price", "description", "volume", "calories", "image_url"}
+        update = {k: v for k, v in (update or {}).items() if k in allowed_fields}
         if not update:
             return False
         res = await db.menu.update_one({"_id": oid}, {"$set": update})
@@ -191,6 +181,5 @@ class MenuDatabase:
     async def clear_menu(self):
         db = await get_db()
         await db.menu.delete_many({})
-
 
 menu_db = MenuDatabase()

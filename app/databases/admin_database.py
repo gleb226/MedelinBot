@@ -1,7 +1,6 @@
-from app.common.config import GOD_IDS
+from app.common.config import BOSS_IDS
 from datetime import datetime
 from app.databases.mongo_client import get_db, projection_without_mongo_id
-
 
 class AdminDatabase:
     async def connect(self):
@@ -23,25 +22,25 @@ class AdminDatabase:
         return bool(r and r.get("is_on_shift"))
 
     async def is_admin(self, user_id: int) -> bool:
-        if str(user_id) in GOD_IDS:
+        if str(user_id) in BOSS_IDS:
             return True
         db = await get_db()
         r = await db.admins.find_one({"user_id": int(user_id)}, {"_id": 0, "user_id": 1})
         return bool(r)
 
     async def is_super_admin(self, user_id: int) -> bool:
-        if str(user_id) in GOD_IDS:
+        if str(user_id) in BOSS_IDS:
             return True
         db = await get_db()
         r = await db.admins.find_one({"user_id": int(user_id)}, {"_id": 0, "role": 1})
-        return (r or {}).get("role") in ("super", "god")
+        return (r or {}).get("role") in ("super", "boss")
 
-    async def is_god(self, user_id: int) -> bool:
-        if str(user_id) in GOD_IDS:
+    async def is_boss(self, user_id: int) -> bool:
+        if str(user_id) in BOSS_IDS:
             return True
         db = await get_db()
         r = await db.admins.find_one({"user_id": int(user_id)}, {"_id": 0, "role": 1})
-        return (r or {}).get("role") == "god"
+        return (r or {}).get("role") == "boss"
 
     async def get_locations_for_admin(self, user_id: int) -> list:
         db = await get_db()
@@ -109,7 +108,7 @@ class AdminDatabase:
         rows = await db.admins.find({}, projection_without_mongo_id()).to_list(length=None)
         if not rows:
             return []
-        role_rank = {"god": 3, "super": 2, "admin": 1}
+        role_rank = {"boss": 3, "super": 2, "admin": 1}
         rows.sort(key=lambda r: (-role_rank.get(r.get("role") or "admin", 1), int(r.get("user_id") or 0)))
         return [(r["user_id"], r.get("username"), r.get("display_name"), r.get("role") or "admin") for r in rows]
 
@@ -118,7 +117,7 @@ class AdminDatabase:
         rows = await db.admins.find({}, projection_without_mongo_id()).to_list(length=None)
         if not rows:
             return []
-        role_rank = {"god": 3, "super": 2, "admin": 1}
+        role_rank = {"boss": 3, "super": 2, "admin": 1}
         rows.sort(key=lambda r: (-role_rank.get(r.get("role") or "admin", 1), int(r.get("user_id") or 0)))
         result = []
         for r in rows:
@@ -138,6 +137,5 @@ class AdminDatabase:
     async def get_admin_by_id(self, user_id: int):
         db = await get_db()
         return await db.admins.find_one({"user_id": int(user_id)}, projection_without_mongo_id())
-
 
 admin_db = AdminDatabase()

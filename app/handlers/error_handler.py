@@ -3,7 +3,7 @@ from datetime import datetime
 from aiogram import Router, Bot
 from aiogram.types import ErrorEvent
 from aiogram.exceptions import TelegramBadRequest
-from app.common.config import GOD_IDS
+from app.common.config import BOSS_IDS
 from app.databases.mongo_client import get_db
 
 error_router = Router()
@@ -60,11 +60,11 @@ async def global_error_handler(event: ErrorEvent, bot: Bot):
     except:
         pass
 
-    for god_id in GOD_IDS:
+    for boss_id in BOSS_IDS:
         try:
             uname = f"@{username}" if username else "N/A"
             await bot.send_message(
-                god_id,
+                boss_id,
                 f"🚨 <b>ERROR REPORT</b>\nUser: <code>{user_id}</code> ({uname})\nType: <code>{etype}</code>\nMsg: <code>{emsg}</code>",
                 parse_mode="HTML",
             )

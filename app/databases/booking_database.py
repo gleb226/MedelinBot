@@ -1,12 +1,9 @@
 from __future__ import annotations
-
 from datetime import datetime, timedelta
 from typing import Any
-
 from bson import ObjectId
 from app.databases.mongo_client import get_db
 from app.utils.phone_utils import normalize_phone
-
 
 class BookingDatabase:
     async def connect(self):
@@ -147,6 +144,5 @@ class BookingDatabase:
         db = await get_db()
         res = await db.bookings.delete_many({})
         return int(res.deleted_count or 0)
-
 
 booking_db = BookingDatabase()

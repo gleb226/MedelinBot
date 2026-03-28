@@ -1,7 +1,6 @@
 from datetime import datetime
 from app.databases.mongo_client import get_db, projection_without_mongo_id
 
-
 class SalesDatabase:
     async def connect(self):
         await get_db()
@@ -70,6 +69,5 @@ class SalesDatabase:
         db = await get_db()
         res = await db.sales.delete_many({})
         return int(res.deleted_count or 0)
-
 
 sales_db = SalesDatabase()

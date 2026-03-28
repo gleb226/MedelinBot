@@ -2,7 +2,6 @@ from datetime import datetime
 from app.databases.mongo_client import get_db, projection_without_mongo_id
 from app.utils.phone_utils import format_phone, normalize_phone
 
-
 class UserDatabase:
     async def connect(self):
         await get_db()
@@ -69,6 +68,5 @@ class UserDatabase:
         if not r:
             return None
         return (r["user_id"], r.get("first_name"), r.get("username"), r.get("phone"))
-
 
 user_db = UserDatabase()
