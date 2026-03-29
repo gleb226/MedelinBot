@@ -1,18 +1,20 @@
 from pathlib import Path
-
 import os
-
 from dotenv import load_dotenv
 
-
-
+# BASE_DIR is the MedelinBot folder
 BASE_DIR = Path(__file__).resolve().parents[2]
+ROOT_DIR = BASE_DIR.parent
 
-env_path = BASE_DIR.parent / ".env"
+env_locations = [
+    BASE_DIR / ".env",
+    ROOT_DIR / ".env"
+]
 
-if env_path.exists():
-
-    load_dotenv(env_path, override=True, encoding="utf-8")
+for loc in env_locations:
+    if loc.exists():
+        load_dotenv(loc, override=True, encoding="utf-8")
+        break
 
 
 
