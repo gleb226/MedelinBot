@@ -20,33 +20,26 @@ class LocationDatabase:
 
 
 
-    async def add_location(self, name, address, schedule, phone, email, google_maps_url, max_tables=10, coordinates=None, image_url=""):
-
+    async def add_location(self, name, address, schedule, phone, email, google_maps_url, max_tables=10, coordinates=None, image_url="", amenities=None, atmosphere=""):
         db = await get_db()
-
         res = await db.locations.insert_one({
-
             "name": name,
-
             "address": address,
-
             "schedule": schedule,
-
             "phone": phone,
-
             "email": email,
-
             "google_maps_url": google_maps_url,
-
             "max_tables": int(max_tables),
-
             "coordinates": coordinates or {"lat": 0.0, "lon": 0.0},
-
-            "image_url": image_url or ""
-
+            "image_url": image_url or "",
+            "amenities": amenities or [],
+            "atmosphere": atmosphere or ""
         })
 
-        return str(res.inserted_id)
+        inserted_id = str(res.inserted_id)
+        from app.utils.data_cache import public_data_cache
+        await public_data_cache.refresh_locations()
+        return inserted_id
 
 
 
@@ -100,7 +93,11 @@ class LocationDatabase:
 
         res = await db.locations.update_one({"_id": oid}, {"$set": update})
 
-        return bool(res.matched_count)
+        success = bool(res.matched_count)
+        if success:
+            from app.utils.data_cache import public_data_cache
+            await public_data_cache.refresh_locations()
+        return success
 
 
 
@@ -110,12 +107,13 @@ class LocationDatabase:
 
         try:
 
-            await db.locations.delete_one({"_id": ObjectId(loc_id)})
-
-            return True
-
+            res = await db.locations.delete_one({"_id": ObjectId(loc_id)})
+            success = bool(res.deleted_count)
+            if success:
+                from app.utils.data_cache import public_data_cache
+                await public_data_cache.refresh_locations()
+            return success
         except:
-
             return False
 
 
@@ -125,6 +123,8 @@ class LocationDatabase:
         db = await get_db()
 
         await db.locations.delete_many({})
+        from app.utils.data_cache import public_data_cache
+        await public_data_cache.refresh_locations()
 
 
 

@@ -13,8 +13,13 @@ class SocialsDatabase:
 
 
     async def close(self):
-
         return
+
+    async def clear_socials(self):
+        db = await get_db()
+        await db.socials.delete_many({})
+        from app.utils.data_cache import public_data_cache
+        await public_data_cache.refresh_socials()
 
 
 
@@ -23,14 +28,12 @@ class SocialsDatabase:
         db = await get_db()
 
         await db.socials.update_one(
-
             {"name": name},
-
             {"$set": {"url": url}},
-
             upsert=True
-
         )
+        from app.utils.data_cache import public_data_cache
+        await public_data_cache.refresh_socials()
 
 
 
@@ -80,7 +83,11 @@ class SocialsDatabase:
 
         res = await db.socials.update_one({"_id": oid}, {"$set": update})
 
-        return bool(res.matched_count)
+        success = bool(res.matched_count)
+        if success:
+            from app.utils.data_cache import public_data_cache
+            await public_data_cache.refresh_socials()
+        return success
 
 
 
@@ -90,12 +97,13 @@ class SocialsDatabase:
 
         try:
 
-            await db.socials.delete_one({"_id": ObjectId(social_id)})
-
-            return True
-
+            res = await db.socials.delete_one({"_id": ObjectId(social_id)})
+            success = bool(res.deleted_count)
+            if success:
+                from app.utils.data_cache import public_data_cache
+                await public_data_cache.refresh_socials()
+            return success
         except:
-
             return False
 
 

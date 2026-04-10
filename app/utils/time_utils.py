@@ -1,26 +1,6 @@
-from datetime import datetime
-
-from app.common.config import WORK_START_HOUR, WORK_END_HOUR
-
-
-
 def is_working_hours() -> bool:
-
-    now = datetime.now()
-
-    return WORK_START_HOUR <= now.hour < WORK_END_HOUR
-
+    return True
 
 
 def get_closed_message() -> str:
-
-    return (
-
-        f"😴 <b>Наразі ми зачинені.</b>\n\n"
-
-        f"Наші робочі години: з {WORK_START_HOUR:02d}:00 до {WORK_END_HOUR:02d}:00.\n"
-
-        f"Будемо раді бачити вас в робочий час! ☕️"
-
-    )
-
+    return "Заклад зараз зачинено."

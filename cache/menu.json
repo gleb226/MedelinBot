@@ -1,0 +1,934 @@
+[
+  {
+    "category": "Десерти",
+    "items": [
+      {
+        "id": "69d8f4427bbc97ca29d57edf",
+        "name": "Вишневий Чізкейк",
+        "price": "110",
+        "description": "Легкий чізкейк з кислинкою вишні та ніжною текстурою.",
+        "volume": "150 г",
+        "calories": "380 ккал",
+        "image_url": "https://images.unsplash.com/photo-1630040995437-80b01c5dd52d?q=80&w=687&auto=format&fit=crop",
+        "options": [],
+        "strength": 0,
+        "sweetness": 3,
+        "composition": "Вершковий сир, вишня, пісочна основа",
+        "country": "",
+        "altitude": "",
+        "sort": "",
+        "processing": "",
+        "roast": "",
+        "taste": ""
+      },
+      {
+        "id": "69d8f4427bbc97ca29d57ee0",
+        "name": "Горішки зі згущенкою",
+        "price": "30",
+        "description": "Ті самі легендарні горішки зі справжнім згущеним молоком.",
+        "volume": "50 г",
+        "calories": "250 ккал",
+        "image_url": "https://images.unsplash.com/photo-1630040995437-80b01c5dd52d?q=80&w=687&auto=format&fit=crop",
+        "options": [],
+        "strength": 0,
+        "sweetness": 5,
+        "composition": "Згущене молоко, волоський горіх, пісочне тісто",
+        "country": "",
+        "altitude": "",
+        "sort": "",
+        "processing": "",
+        "roast": "",
+        "taste": ""
+      },
+      {
+        "id": "69d8f4437bbc97ca29d57ee1",
+        "name": "Еклер Карамельний",
+        "price": "80",
+        "description": "Ніжне заварне тісто з оксамитовим карамельним кремом.",
+        "volume": "70 г",
+        "calories": "290 ккал",
+        "image_url": "https://images.unsplash.com/photo-1630040995437-80b01c5dd52d?q=80&w=687&auto=format&fit=crop",
+        "options": [],
+        "strength": 0,
+        "sweetness": 5,
+        "composition": "Заварний крем, карамель, бельгійський шоколад",
+        "country": "",
+        "altitude": "",
+        "sort": "",
+        "processing": "",
+        "roast": "",
+        "taste": ""
+      },
+      {
+        "id": "69d8f4437bbc97ca29d57ee2",
+        "name": "Макаронс (набір)",
+        "price": "140",
+        "description": "Набір з двох французьких мигдалевих тістечок з різними смаками.",
+        "volume": "70 г",
+        "calories": "240 ккал",
+        "image_url": "https://images.unsplash.com/photo-1630040995437-80b01c5dd52d?q=80&w=687&auto=format&fit=crop",
+        "options": [],
+        "strength": 0,
+        "sweetness": 5,
+        "composition": "Мигдалеве борошно, білок, фруктовий ганаш",
+        "country": "",
+        "altitude": "",
+        "sort": "",
+        "processing": "",
+        "roast": "",
+        "taste": ""
+      },
+      {
+        "id": "69d8f4437bbc97ca29d57ee3",
+        "name": "Чізкейк Сан-Себастьян",
+        "price": "110",
+        "description": "Насичений сирний десерт з характерною карамельною скоринкою.",
+        "volume": "150 г",
+        "calories": "450 ккал",
+        "image_url": "https://images.unsplash.com/photo-1630040995437-80b01c5dd52d?q=80&w=687&auto=format&fit=crop",
+        "options": [],
+        "strength": 0,
+        "sweetness": 3,
+        "composition": "Вершковий сир, вершки 33%, цукор, яйця",
+        "country": "",
+        "altitude": "",
+        "sort": "",
+        "processing": "",
+        "roast": "",
+        "taste": ""
+      }
+    ]
+  },
+  {
+    "category": "Кава",
+    "items": [
+      {
+        "id": "69d8f4417bbc97ca29d57ed7",
+        "name": "Американо",
+        "price": "43",
+        "description": "Класична чорна кава з м'яким смаком для бадьорого ранку.",
+        "volume": "150 мл",
+        "calories": "5 ккал",
+        "image_url": "https://images.unsplash.com/photo-1630040995437-80b01c5dd52d?q=80&w=687&auto=format&fit=crop",
+        "options": [
+          {
+            "type": "caffeine",
+            "name": "Звичайна",
+            "add_price": 0
+          },
+          {
+            "type": "caffeine",
+            "name": "Декаф",
+            "add_price": 15
+          },
+          {
+            "type": "addon",
+            "name": "Молоко 70мл",
+            "add_price": 10
+          },
+          {
+            "type": "addon",
+            "name": "Вершки 70мл",
+            "add_price": 10
+          },
+          {
+            "type": "addon",
+            "name": "Мед",
+            "add_price": 10
+          },
+          {
+            "type": "addon",
+            "name": "Згущене молоко",
+            "add_price": 15
+          },
+          {
+            "type": "addon",
+            "name": "Карамель",
+            "add_price": 15
+          }
+        ],
+        "strength": 2,
+        "sweetness": 1,
+        "composition": "100% арабіка",
+        "country": "Індія",
+        "altitude": "900-1200м",
+        "sort": "Арабіка",
+        "processing": "Монсунінг",
+        "roast": "Середнє",
+        "taste": "Мускатний горіх, земляні ноти"
+      },
+      {
+        "id": "69d8f4417bbc97ca29d57ed8",
+        "name": "Глясе",
+        "price": "73",
+        "description": "Прохолодна кава з великою кулькою ніжного ванільного морозива.",
+        "volume": "250 мл",
+        "calories": "180 ккал",
+        "image_url": "https://images.unsplash.com/photo-1630040995437-80b01c5dd52d?q=80&w=687&auto=format&fit=crop",
+        "options": [
+          {
+            "type": "caffeine",
+            "name": "Звичайна",
+            "add_price": 0
+          },
+          {
+            "type": "caffeine",
+            "name": "Декаф",
+            "add_price": 15
+          },
+          {
+            "type": "milk",
+            "name": "Звичайне",
+            "add_price": 0
+          },
+          {
+            "type": "milk",
+            "name": "Безлактозне",
+            "add_price": 15
+          },
+          {
+            "type": "milk",
+            "name": "Вівсяне",
+            "add_price": 25
+          },
+          {
+            "type": "milk",
+            "name": "Мигдалеве",
+            "add_price": 25
+          },
+          {
+            "type": "milk",
+            "name": "Кокосове",
+            "add_price": 25
+          },
+          {
+            "type": "addon",
+            "name": "Молоко 70мл",
+            "add_price": 10
+          },
+          {
+            "type": "addon",
+            "name": "Вершки 70мл",
+            "add_price": 10
+          },
+          {
+            "type": "addon",
+            "name": "Мед",
+            "add_price": 10
+          },
+          {
+            "type": "addon",
+            "name": "Згущене молоко",
+            "add_price": 15
+          },
+          {
+            "type": "addon",
+            "name": "Карамель",
+            "add_price": 15
+          }
+        ],
+        "strength": 2,
+        "sweetness": 5,
+        "composition": "100% арабіка + морозиво",
+        "country": "Бразилія",
+        "altitude": "1100м",
+        "sort": "Арабіка",
+        "processing": "Натуральна",
+        "roast": "Середнє",
+        "taste": "Горіх, шоколад"
+      },
+      {
+        "id": "69d8f4417bbc97ca29d57ed9",
+        "name": "Еспресо",
+        "price": "42",
+        "description": "Основа основ — концентрований напій з щільним тілом та стійкою пінкою.",
+        "volume": "30 мл",
+        "calories": "5 ккал",
+        "image_url": "https://images.unsplash.com/photo-1630040995437-80b01c5dd52d?q=80&w=687&auto=format&fit=crop",
+        "options": [
+          {
+            "type": "caffeine",
+            "name": "Звичайна",
+            "add_price": 0
+          },
+          {
+            "type": "caffeine",
+            "name": "Декаф",
+            "add_price": 15
+          },
+          {
+            "type": "addon",
+            "name": "Молоко 70мл",
+            "add_price": 10
+          },
+          {
+            "type": "addon",
+            "name": "Вершки 70мл",
+            "add_price": 10
+          },
+          {
+            "type": "addon",
+            "name": "Мед",
+            "add_price": 10
+          },
+          {
+            "type": "addon",
+            "name": "Згущене молоко",
+            "add_price": 15
+          },
+          {
+            "type": "addon",
+            "name": "Карамель",
+            "add_price": 15
+          }
+        ],
+        "strength": 3,
+        "sweetness": 0,
+        "composition": "100% арабіка",
+        "country": "Індія",
+        "altitude": "900-1200м",
+        "sort": "Арабіка",
+        "processing": "Монсунінг",
+        "roast": "Середнє",
+        "taste": "Земляні ноти"
+      },
+      {
+        "id": "69d8f4427bbc97ca29d57eda",
+        "name": "Капучино",
+        "price": "57",
+        "description": "Класичне співвідношення еспресо та ніжно збитого молока.",
+        "volume": "200 мл",
+        "calories": "120 ккал",
+        "image_url": "https://images.unsplash.com/photo-1630040995437-80b01c5dd52d?q=80&w=687&auto=format&fit=crop",
+        "options": [
+          {
+            "type": "caffeine",
+            "name": "Звичайна",
+            "add_price": 0
+          },
+          {
+            "type": "caffeine",
+            "name": "Декаф",
+            "add_price": 15
+          },
+          {
+            "type": "milk",
+            "name": "Звичайне",
+            "add_price": 0
+          },
+          {
+            "type": "milk",
+            "name": "Безлактозне",
+            "add_price": 15
+          },
+          {
+            "type": "milk",
+            "name": "Вівсяне",
+            "add_price": 25
+          },
+          {
+            "type": "milk",
+            "name": "Мигдалеве",
+            "add_price": 25
+          },
+          {
+            "type": "milk",
+            "name": "Кокосове",
+            "add_price": 25
+          },
+          {
+            "type": "addon",
+            "name": "Молоко 70мл",
+            "add_price": 10
+          },
+          {
+            "type": "addon",
+            "name": "Вершки 70мл",
+            "add_price": 10
+          },
+          {
+            "type": "addon",
+            "name": "Мед",
+            "add_price": 10
+          },
+          {
+            "type": "addon",
+            "name": "Згущене молоко",
+            "add_price": 15
+          },
+          {
+            "type": "addon",
+            "name": "Карамель",
+            "add_price": 15
+          }
+        ],
+        "strength": 2,
+        "sweetness": 1,
+        "composition": "100% арабіка + молоко",
+        "country": "Ефіопія",
+        "altitude": "1800-2100м",
+        "sort": "Арабіка",
+        "processing": "Мита",
+        "roast": "Світле",
+        "taste": "Жасмин, цитрус"
+      },
+      {
+        "id": "69d8f4427bbc97ca29d57edb",
+        "name": "Лате",
+        "price": "63",
+        "description": "Найніжніший кавовий напій з великою кількістю молока.",
+        "volume": "300 мл",
+        "calories": "150 ккал",
+        "image_url": "https://images.unsplash.com/photo-1630040995437-80b01c5dd52d?q=80&w=687&auto=format&fit=crop",
+        "options": [
+          {
+            "type": "caffeine",
+            "name": "Звичайна",
+            "add_price": 0
+          },
+          {
+            "type": "caffeine",
+            "name": "Декаф",
+            "add_price": 15
+          },
+          {
+            "type": "milk",
+            "name": "Звичайне",
+            "add_price": 0
+          },
+          {
+            "type": "milk",
+            "name": "Безлактозне",
+            "add_price": 15
+          },
+          {
+            "type": "milk",
+            "name": "Вівсяне",
+            "add_price": 25
+          },
+          {
+            "type": "milk",
+            "name": "Мигдалеве",
+            "add_price": 25
+          },
+          {
+            "type": "milk",
+            "name": "Кокосове",
+            "add_price": 25
+          },
+          {
+            "type": "addon",
+            "name": "Молоко 70мл",
+            "add_price": 10
+          },
+          {
+            "type": "addon",
+            "name": "Вершки 70мл",
+            "add_price": 10
+          },
+          {
+            "type": "addon",
+            "name": "Мед",
+            "add_price": 10
+          },
+          {
+            "type": "addon",
+            "name": "Згущене молоко",
+            "add_price": 15
+          },
+          {
+            "type": "addon",
+            "name": "Карамель",
+            "add_price": 15
+          }
+        ],
+        "strength": 1,
+        "sweetness": 1,
+        "composition": "100% арабіка + молоко",
+        "country": "Бразилія",
+        "altitude": "1100м",
+        "sort": "Арабіка",
+        "processing": "Натуральна",
+        "roast": "Середнє",
+        "taste": "Карамель, молочний шоколад"
+      },
+      {
+        "id": "69d8f4427bbc97ca29d57edc",
+        "name": "Раф",
+        "price": "76",
+        "description": "Вершковий десертний напій, збитий разом з ванільним цукром.",
+        "volume": "250 мл",
+        "calories": "250 ккал",
+        "image_url": "https://images.unsplash.com/photo-1630040995437-80b01c5dd52d?q=80&w=687&auto=format&fit=crop",
+        "options": [
+          {
+            "type": "caffeine",
+            "name": "Звичайна",
+            "add_price": 0
+          },
+          {
+            "type": "caffeine",
+            "name": "Декаф",
+            "add_price": 15
+          },
+          {
+            "type": "milk",
+            "name": "Звичайне",
+            "add_price": 0
+          },
+          {
+            "type": "milk",
+            "name": "Безлактозне",
+            "add_price": 15
+          },
+          {
+            "type": "milk",
+            "name": "Вівсяне",
+            "add_price": 25
+          },
+          {
+            "type": "milk",
+            "name": "Мигдалеве",
+            "add_price": 25
+          },
+          {
+            "type": "milk",
+            "name": "Кокосове",
+            "add_price": 25
+          },
+          {
+            "type": "addon",
+            "name": "Молоко 70мл",
+            "add_price": 10
+          },
+          {
+            "type": "addon",
+            "name": "Вершки 70мл",
+            "add_price": 10
+          },
+          {
+            "type": "addon",
+            "name": "Мед",
+            "add_price": 10
+          },
+          {
+            "type": "addon",
+            "name": "Згущене молоко",
+            "add_price": 15
+          },
+          {
+            "type": "addon",
+            "name": "Карамель",
+            "add_price": 15
+          }
+        ],
+        "strength": 1,
+        "sweetness": 5,
+        "composition": "100% арабіка + вершки + ваніль",
+        "country": "Колумбія",
+        "altitude": "1400-1600м",
+        "sort": "Арабіка",
+        "processing": "Мита",
+        "roast": "Середнє",
+        "taste": "Ваніль, вершки"
+      },
+      {
+        "id": "69d8f4427bbc97ca29d57edd",
+        "name": "Фільтр кава",
+        "price": "60",
+        "description": "Чиста кава, приготована методом прокапування через паперовий фільтр.",
+        "volume": "250 мл",
+        "calories": "2 ккал",
+        "image_url": "https://images.unsplash.com/photo-1630040995437-80b01c5dd52d?q=80&w=687&auto=format&fit=crop",
+        "options": [
+          {
+            "type": "addon",
+            "name": "Молоко 70мл",
+            "add_price": 10
+          },
+          {
+            "type": "addon",
+            "name": "Вершки 70мл",
+            "add_price": 10
+          },
+          {
+            "type": "addon",
+            "name": "Мед",
+            "add_price": 10
+          },
+          {
+            "type": "addon",
+            "name": "Згущене молоко",
+            "add_price": 15
+          },
+          {
+            "type": "addon",
+            "name": "Карамель",
+            "add_price": 15
+          }
+        ],
+        "strength": 2,
+        "sweetness": 0,
+        "composition": "100% Specialty Арабіка",
+        "country": "Ефіопія",
+        "altitude": "2000м",
+        "sort": "Арабіка",
+        "processing": "Натуральна",
+        "roast": "Світле",
+        "taste": "Ягоди, бергамот"
+      },
+      {
+        "id": "69d8f4427bbc97ca29d57ede",
+        "name": "Флет Вайт",
+        "price": "94",
+        "description": "Насичений смак подвійного рістрето з тонким шаром еластичного молока.",
+        "volume": "200 мл",
+        "calories": "130 ккал",
+        "image_url": "https://images.unsplash.com/photo-1630040995437-80b01c5dd52d?q=80&w=687&auto=format&fit=crop",
+        "options": [
+          {
+            "type": "caffeine",
+            "name": "Звичайна",
+            "add_price": 0
+          },
+          {
+            "type": "caffeine",
+            "name": "Декаф",
+            "add_price": 15
+          },
+          {
+            "type": "milk",
+            "name": "Звичайне",
+            "add_price": 0
+          },
+          {
+            "type": "milk",
+            "name": "Безлактозне",
+            "add_price": 15
+          },
+          {
+            "type": "milk",
+            "name": "Вівсяне",
+            "add_price": 25
+          },
+          {
+            "type": "milk",
+            "name": "Мигдалеве",
+            "add_price": 25
+          },
+          {
+            "type": "milk",
+            "name": "Кокосове",
+            "add_price": 25
+          },
+          {
+            "type": "addon",
+            "name": "Молоко 70мл",
+            "add_price": 10
+          },
+          {
+            "type": "addon",
+            "name": "Вершки 70мл",
+            "add_price": 10
+          },
+          {
+            "type": "addon",
+            "name": "Мед",
+            "add_price": 10
+          },
+          {
+            "type": "addon",
+            "name": "Згущене молоко",
+            "add_price": 15
+          },
+          {
+            "type": "addon",
+            "name": "Карамель",
+            "add_price": 15
+          }
+        ],
+        "strength": 3,
+        "sweetness": 1,
+        "composition": "100% арабіка + молоко",
+        "country": "Бразилія",
+        "altitude": "1100м",
+        "sort": "Арабіка",
+        "processing": "Натуральна",
+        "roast": "Середнє",
+        "taste": "Горіх, карамель"
+      }
+    ]
+  },
+  {
+    "category": "Какао",
+    "items": [
+      {
+        "id": "69d8f4457bbc97ca29d57eeb",
+        "name": "Какао з маршмелоу",
+        "price": "65",
+        "description": "Насичений шоколадний напій з солодкими хмаринками маршмелоу.",
+        "volume": "250 мл",
+        "calories": "220 ккал",
+        "image_url": "https://images.unsplash.com/photo-1630040995437-80b01c5dd52d?q=80&w=687&auto=format&fit=crop",
+        "options": [
+          {
+            "type": "milk",
+            "name": "Звичайне",
+            "add_price": 0
+          },
+          {
+            "type": "milk",
+            "name": "Безлактозне",
+            "add_price": 15
+          },
+          {
+            "type": "milk",
+            "name": "Вівсяне",
+            "add_price": 25
+          },
+          {
+            "type": "milk",
+            "name": "Мигдалеве",
+            "add_price": 25
+          },
+          {
+            "type": "milk",
+            "name": "Кокосове",
+            "add_price": 25
+          }
+        ],
+        "strength": 0,
+        "sweetness": 3,
+        "composition": "Какао-порошок Barry Callebaut, молоко, маршмелоу",
+        "country": "",
+        "altitude": "",
+        "sort": "",
+        "processing": "",
+        "roast": "",
+        "taste": ""
+      }
+    ]
+  },
+  {
+    "category": "Матча",
+    "items": [
+      {
+        "id": "69d8f4447bbc97ca29d57eea",
+        "name": "Матча Лате",
+        "price": "90",
+        "description": "Традиційний японський церемоніальний чай матча з молоком.",
+        "volume": "250 мл",
+        "calories": "140 ккал",
+        "image_url": "https://images.unsplash.com/photo-1630040995437-80b01c5dd52d?q=80&w=687&auto=format&fit=crop",
+        "options": [
+          {
+            "type": "milk",
+            "name": "Звичайне",
+            "add_price": 0
+          },
+          {
+            "type": "milk",
+            "name": "Безлактозне",
+            "add_price": 15
+          },
+          {
+            "type": "milk",
+            "name": "Вівсяне",
+            "add_price": 25
+          },
+          {
+            "type": "milk",
+            "name": "Мигдалеве",
+            "add_price": 25
+          },
+          {
+            "type": "milk",
+            "name": "Кокосове",
+            "add_price": 25
+          }
+        ],
+        "strength": 1,
+        "sweetness": 3,
+        "composition": "Пудра матча, збите молоко",
+        "country": "",
+        "altitude": "",
+        "sort": "",
+        "processing": "",
+        "roast": "",
+        "taste": ""
+      }
+    ]
+  },
+  {
+    "category": "Напої",
+    "items": [
+      {
+        "id": "69d8f4437bbc97ca29d57ee4",
+        "name": "Еспресо Тонік",
+        "price": "85",
+        "description": "Освіжаючий та ігристий мікс подвійного еспресо, тоніку та льоду.",
+        "volume": "250 мл",
+        "calories": "90 ккал",
+        "image_url": "https://images.unsplash.com/photo-1630040995437-80b01c5dd52d?q=80&w=687&auto=format&fit=crop",
+        "options": [
+          {
+            "type": "caffeine",
+            "name": "Звичайна",
+            "add_price": 0
+          },
+          {
+            "type": "caffeine",
+            "name": "Декаф",
+            "add_price": 15
+          }
+        ],
+        "strength": 2,
+        "sweetness": 3,
+        "composition": "Еспресо, тонік Schweppes, лід, лимон",
+        "country": "",
+        "altitude": "",
+        "sort": "",
+        "processing": "",
+        "roast": "",
+        "taste": ""
+      },
+      {
+        "id": "69d8f4437bbc97ca29d57ee5",
+        "name": "Лимонад Класичний",
+        "price": "90",
+        "description": "Натуральний авторський лимонад з цитрусових.",
+        "volume": "300 мл",
+        "calories": "120 ккал",
+        "image_url": "https://images.unsplash.com/photo-1630040995437-80b01c5dd52d?q=80&w=687&auto=format&fit=crop",
+        "options": [],
+        "strength": 0,
+        "sweetness": 3,
+        "composition": "Сік лимона, сік апельсина, цукровий сироп, газована вода",
+        "country": "",
+        "altitude": "",
+        "sort": "",
+        "processing": "",
+        "roast": "",
+        "taste": ""
+      },
+      {
+        "id": "69d8f4437bbc97ca29d57ee6",
+        "name": "Джміль (Bumble)",
+        "price": "105",
+        "description": "Тришаровий напій з карамельного сиропу, апельсинового соку та еспресо.",
+        "volume": "300 мл",
+        "calories": "180 ккал",
+        "image_url": "https://images.unsplash.com/photo-1630040995437-80b01c5dd52d?q=80&w=687&auto=format&fit=crop",
+        "options": [
+          {
+            "type": "caffeine",
+            "name": "Звичайна",
+            "add_price": 0
+          },
+          {
+            "type": "caffeine",
+            "name": "Декаф",
+            "add_price": 15
+          }
+        ],
+        "strength": 2,
+        "sweetness": 3,
+        "composition": "Еспресо, апельсиновий сік, карамельний сироп, лід",
+        "country": "",
+        "altitude": "",
+        "sort": "",
+        "processing": "",
+        "roast": "",
+        "taste": ""
+      }
+    ]
+  },
+  {
+    "category": "Чай",
+    "items": [
+      {
+        "id": "69d8f4447bbc97ca29d57ee7",
+        "name": "Чай Масала",
+        "price": "90",
+        "description": "Пряний індійський чай на молочній основі з секретними спеціями.",
+        "volume": "250 мл",
+        "calories": "160 ккал",
+        "image_url": "https://images.unsplash.com/photo-1630040995437-80b01c5dd52d?q=80&w=687&auto=format&fit=crop",
+        "options": [
+          {
+            "type": "milk",
+            "name": "Звичайне",
+            "add_price": 0
+          },
+          {
+            "type": "milk",
+            "name": "Безлактозне",
+            "add_price": 15
+          },
+          {
+            "type": "milk",
+            "name": "Вівсяне",
+            "add_price": 25
+          },
+          {
+            "type": "milk",
+            "name": "Мигдалеве",
+            "add_price": 25
+          },
+          {
+            "type": "milk",
+            "name": "Кокосове",
+            "add_price": 25
+          }
+        ],
+        "strength": 1,
+        "sweetness": 3,
+        "composition": "Чорний чай, молоко, імбир, кориця, кардамон, гвоздика",
+        "country": "",
+        "altitude": "",
+        "sort": "",
+        "processing": "",
+        "roast": "",
+        "taste": ""
+      },
+      {
+        "id": "69d8f4447bbc97ca29d57ee8",
+        "name": "Зелений (Сенча)",
+        "price": "70",
+        "description": "Класичний японський зелений чай з м'яким трав'яним смаком.",
+        "volume": "400 мл",
+        "calories": "2 ккал",
+        "image_url": "https://images.unsplash.com/photo-1630040995437-80b01c5dd52d?q=80&w=687&auto=format&fit=crop",
+        "options": [],
+        "strength": 0,
+        "sweetness": 0,
+        "composition": "Листовий зелений чай сорту Сенча",
+        "country": "",
+        "altitude": "",
+        "sort": "",
+        "processing": "",
+        "roast": "",
+        "taste": ""
+      },
+      {
+        "id": "69d8f4447bbc97ca29d57ee9",
+        "name": "Карпатський збір",
+        "price": "70",
+        "description": "Ароматний збір гірських трав, зібраних власноруч.",
+        "volume": "400 мл",
+        "calories": "2 ккал",
+        "image_url": "https://images.unsplash.com/photo-1630040995437-80b01c5dd52d?q=80&w=687&auto=format&fit=crop",
+        "options": [],
+        "strength": 0,
+        "sweetness": 0,
+        "composition": "М'ята, чебрець, материнка, липа, шипшина",
+        "country": "",
+        "altitude": "",
+        "sort": "",
+        "processing": "",
+        "roast": "",
+        "taste": ""
+      }
+    ]
+  }
+]

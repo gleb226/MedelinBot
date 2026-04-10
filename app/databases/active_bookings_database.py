@@ -7,48 +7,48 @@ from bson import ObjectId
 from app.databases.mongo_client import get_db
 
 
-
 class ActiveBookingsDatabase:
+
+    @staticmethod
+    def _parse_booking_datetime(date_time: str) -> datetime:
+        value = (date_time or "").strip().replace(" о ", " ").replace(" ? ", " ")
+        if not value:
+            return datetime.utcnow()
+
+        formats = (
+            "%d.%m.%Y %H:%M",
+            "%d.%m %H:%M",
+            "%Y-%m-%d %H:%M",
+        )
+        for fmt in formats:
+            try:
+                parsed = datetime.strptime(value, fmt)
+                if fmt == "%d.%m %H:%M":
+                    return parsed.replace(year=datetime.now().year)
+                return parsed
+            except ValueError:
+                continue
+
+        return datetime.utcnow()
 
     async def connect(self):
 
         await get_db()
 
-
-
     async def close(self):
 
         return
 
-
-
     async def add_active_booking(self, order_id, user_id, fullname, phone, location_id, date_time, people_count, wishes):
 
         db = await get_db()
-
-        try:
-
-            date_part, time_part = date_time.split(" о ")
-
-            day, month = date_part.split(".")
-
-            hour, minute = time_part.split(":")
-
-            year = datetime.now().year
-
-            booking_dt = datetime(year, int(month), int(day), int(hour), int(minute))
-
-        except:
-
-            booking_dt = datetime.utcnow()
-
-
+        booking_dt = self._parse_booking_datetime(date_time)
 
         await db.active_bookings.insert_one({
 
             "order_id": str(order_id),
 
-            "user_id": int(user_id),
+            "user_id": int(user_id) if user_id is not None else None,
 
             "fullname": fullname,
 
@@ -68,8 +68,6 @@ class ActiveBookingsDatabase:
 
         })
 
-
-
     async def get_active_bookings(self, location_ids=None):
 
         db = await get_db()
@@ -80,27 +78,19 @@ class ActiveBookingsDatabase:
 
             query["location_id"] = {"$in": [str(x) for x in location_ids]}
 
-        
-
         cutoff = datetime.now() - timedelta(hours=1)
 
         await db.active_bookings.delete_many({"booking_at": {"$lt": cutoff}})
 
-        
-
         cur = db.active_bookings.find(query).sort("booking_at", 1)
 
         return await cur.to_list(length=None)
-
-
 
     async def remove_booking(self, active_id):
 
         db = await get_db()
 
         await db.active_bookings.delete_one({"_id": ObjectId(str(active_id))})
-
-
 
     async def remove_booking_by_order_id(self, order_id):
 
@@ -109,6 +99,4 @@ class ActiveBookingsDatabase:
         await db.active_bookings.delete_one({"order_id": str(order_id)})
 
 
-
 active_bookings_db = ActiveBookingsDatabase()
-

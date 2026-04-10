@@ -50,6 +50,8 @@ class OrdersDatabase:
 
         order_type="booking",
 
+        payment_mode="cashier",
+
         table_number="",
 
     ):
@@ -89,6 +91,8 @@ class OrdersDatabase:
             "status": "new",
 
             "order_type": order_type,
+
+            "payment_mode": payment_mode,
 
             "table_number": table_number or "",
 

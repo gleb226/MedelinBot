@@ -30,7 +30,7 @@ class ActiveOrdersDatabase:
 
             "order_id": str(order_id),
 
-            "user_id": int(user_id),
+            "user_id": int(user_id) if user_id is not None else None,
 
             "fullname": fullname,
 
